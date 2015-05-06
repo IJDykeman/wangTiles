@@ -1,15 +1,16 @@
 import java.util.Collections;
 
 Tile[][] map;
-int tileWidth = 15;
-int mapWidth = 50;
+int tileWidth = 6;
+int mapWidth = 130;
 boolean showLines = false;
 ArrayList<Tile> wangTiles;
 PImage tilesImage;
+int timeSinceMapBuild =0;
 
 void setup() {
 
-
+  frameRate(10000);
 
 
 
@@ -20,25 +21,20 @@ void setup() {
 }
 
 void buildMap() {
+  timeSinceMapBuild = 0;
   wangTiles = parseTilesIntoSet();
-
-
   map = new Tile[mapWidth][mapWidth];
+
+  
+  ArrayList<PVector> tileLocs = new ArrayList<PVector>();
   for (int x=0; x<mapWidth; x++) {
     for (int y=0; y<mapWidth; y++) {
-      int why = y;
-      if (x%2==0) {
-        why = mapWidth-y-1;
-      }
-      placeTileAt(x, why);
+      tileLocs.add(new PVector(x,y));
     }
   }
-  for (int x=0; x<mapWidth; x++) {
-    for (int y=0; y<mapWidth; y++) {
-      ///if (!isValidPlacement (map[x][y], x, y)) {
-      //map[x][y] = null;
-      //}
-    }
+  Collections.shuffle(tileLocs);
+  for(PVector test:tileLocs){
+    placeTileAt((int)test.x, (int)test.y);
   }
 }
 
@@ -52,8 +48,7 @@ ArrayList<Tile> parseTilesIntoSet(){
   for (int x=0; x< (tilesImage.width-3)/4+1; x++) {
     for (int y=0; y< (tilesImage.height-3)/4+1; y++) {
       PImage image = tilesImage.get(x*4, y*4, 3, 3);
-      int likelyhood = 255-(int)red(tilesImage.get(x*4, y*4+3));
-      println(likelyhood);
+      int likelyhood = (int)pow(255-(int)red(tilesImage.get(x*4, y*4+3)),1);
       if (!( new Tile(image,likelyhood).isAllWhite()) && ((int)tilesImage.get(x*4+1, y*4+3) != color(255,0,0)))
       {
         result.add(new Tile(image, likelyhood));
@@ -76,6 +71,8 @@ ArrayList<Tile> parseTilesIntoSet(){
 
 
 void draw() {
+  
+  smooth();
   if (!imagesEqual(loadImage("wangTiles.png"), tilesImage)) {
     buildMap();
   }
@@ -99,9 +96,15 @@ void draw() {
       line(0, tileWidth*y, width, tileWidth*y);
     }
   }
-  for(int i=0;i<3;i++){
-    flipTopLeft();
+  
+  int numIterations = 1;
+  if(timeSinceMapBuild>10){
+    numIterations = 20;
   }
+  for(int i=0;i<numIterations;i++){
+    flipTopLeft(timeSinceMapBuild>7);
+  }
+  timeSinceMapBuild++;
   
   /*background(255);
   for(int i=0;i<wangTiles.size();i++){
@@ -110,20 +113,11 @@ void draw() {
 }
 
 
-
-int count =0;
 void keyPressed() {
   if (key == 'L' || key =='l') {
     showLines = !showLines;
   } else {
     buildMap();
-    /*
-  int x = (count-count%mapWidth)/mapWidth;
-     int y = count%mapWidth;
-     if(count<mapWidth*mapWidth){
-     placeTileAt(x,y);
-     count++;
-     }*/
   }
 }
 
@@ -145,7 +139,7 @@ void flipTilesAndNeighbors(ArrayList<TileLoc> locs) {
 void mouseClicked() {
   int x=mouseX/tileWidth;
   int y=mouseY/tileWidth;
-  flipTilesAround(x, y);
+  flipTilesAround(x, y,false);
 }
 
 

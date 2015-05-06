@@ -13,7 +13,7 @@ class Tile{
  }
  
   void draw(int xIndex, int yIndex){
-    noSmooth();
+    
     image(image,tileWidth*xIndex,tileWidth*yIndex,tileWidth,tileWidth);
   }
   

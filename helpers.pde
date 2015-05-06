@@ -14,9 +14,13 @@ boolean imagesEqual(PImage image1, PImage image2) {
 }
 
 
-void flipTilesAround(int x, int y) {
+void flipTilesAround(int x, int y, boolean aggressive) {
   ArrayList<TileLoc> toReset = new ArrayList<TileLoc>();
-
+  if(aggressive){
+    //toReset.add(new TileLoc(x-1, y-1));
+    //toReset.add(new TileLoc(x+1, y+1));
+  }
+  
   toReset.add(new TileLoc(x-1, y));
 
   toReset.add(new TileLoc(x+1, y));
@@ -24,6 +28,11 @@ void flipTilesAround(int x, int y) {
   toReset.add(new TileLoc(x, y+1));
 
   toReset.add(new TileLoc(x, y-1));
+
+  if(aggressive){
+    //toReset.add(new TileLoc(x+1, y-1));
+   // toReset.add(new TileLoc(x-1, y+1));
+  }
   if (random(1)<.5) {
     Collections.reverse(toReset);
   }
@@ -33,18 +42,19 @@ void flipTilesAround(int x, int y) {
     toReset.add(3, new TileLoc(x, y));
   }
   //Collections.shuffle(toReset);
+
   flipTilesAndNeighbors(toReset);
 }
 
-void flipTopLeft() {
-
+void flipTopLeft(boolean aggressive) {
+  
   for (int x=0; x<mapWidth; x++) {
     for (int y=0; y<mapWidth; y++) {
       //for (int i=0; i<400; i++) {
       //int x=(int)random(mapWidth);
       //int y=(int)random(mapWidth);
       if (map[x][y]==null) {
-        flipTilesAround(x, y);
+        flipTilesAround(x, y, false);
       }
       //}
     }
@@ -89,7 +99,7 @@ Tile getRandomChoice(ArrayList<Tile> list){
     weightSum += test.likelyhood;
    
   }
-   println("like um "+ weightSum);
+
   int choice = (int)random(weightSum);
   Collections.shuffle(list);
   for (Tile test2 : list){
