@@ -1,5 +1,9 @@
 class ScoredMap extends Map {
 
+  ScoredMap(Tile[][] nTiles) {
+    tiles = nTiles;
+  }
+
   ScoredMap(int imapWidth, int itileWidth) {
     tilesImage = loadImage(FILENAME);
     mapWidth = imapWidth;
@@ -15,11 +19,42 @@ class ScoredMap extends Map {
     }
     Collections.shuffle(tileLocs);
     for (PVector test : tileLocs) {
-      placeTileAt((int)test.x, (int)test.y);
+      placeRandomTileAt((int)test.x, (int)test.y);
     }
   }
 
-  void placeTileAt(int x, int y) {
+
+
+  void randomizeRegion (int x1, int y1, int x2, int y2) {
+    assert (x1<x2 && y1<y2);
+    for (int x = x1; x<x2; x++) {
+      for (int y = y1; y<y2; y++) {
+        placeRandomTileAt(x,y);
+      }
+    }
+  }
+  
+  void tryRandomizingRegion(){
+    print("hello");
+    ScoredMap otherOption = new ScoredMap(getTilesCopy());
+    int x = int(random(mapWidth-10));
+    int y = int(random(mapWidth-10));
+    
+    otherOption.randomizeRegion(x,y,x+10,y+10);
+    if (otherOption.mapScore()>mapScore()){
+      tiles = otherOption.tiles;
+      print("found a better map");
+    }
+    
+  }
+
+  void update() {
+    text(mapScore(), 20, 20);
+    tryRandomizingRegion();
+  }
+
+
+  void placeRandomTileAt(int x, int y) {
     int ex = x;//(int)random(mapWidth);
     int why = y;//(int)random(mapWidth);
     if (tiles[ex][why] == null) {
@@ -30,15 +65,11 @@ class ScoredMap extends Map {
     }
   }
 
-  void update() {
-    text(mapScore(), 20, 20);
-  }
-
   float mapScore() {
     float result = 0;
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
-        result += placementScore(tiles[x][y],x,y);
+        result += placementScore(tiles[x][y], x, y);
       }
     }
     return result;
