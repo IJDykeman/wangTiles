@@ -1,7 +1,11 @@
 class ScoredMap extends Map {
 
-  ScoredMap(Tile[][] nTiles) {
-    tiles = nTiles;
+  ScoredMap(ScoredMap toCopy) {
+    tiles = toCopy.getTilesCopy();
+    mapWidth = toCopy.mapWidth;
+    tileWidth = toCopy.tileWidth;
+    timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
+    wangTiles = toCopy.wangTiles;
   }
 
   ScoredMap(int imapWidth, int itileWidth) {
@@ -36,11 +40,12 @@ class ScoredMap extends Map {
   
   void tryRandomizingRegion(){
     print("hello");
-    ScoredMap otherOption = new ScoredMap(getTilesCopy());
+    ScoredMap otherOption = new ScoredMap(this);
     int x = int(random(mapWidth-10));
     int y = int(random(mapWidth-10));
     
     otherOption.randomizeRegion(x,y,x+10,y+10);
+    
     if (otherOption.mapScore()>mapScore()){
       tiles = otherOption.tiles;
       print("found a better map");
@@ -57,12 +62,11 @@ class ScoredMap extends Map {
   void placeRandomTileAt(int x, int y) {
     int ex = x;//(int)random(mapWidth);
     int why = y;//(int)random(mapWidth);
-    if (tiles[ex][why] == null) {
-      Tile tile=null;
+    Tile tile=null;
 
-      tile =  getRandomChoice(wangTiles);
-      tiles[ex][why] = tile;
-    }
+    tile =  getRandomChoice(wangTiles);
+    tiles[ex][why] = tile;
+    
   }
 
   float mapScore() {
