@@ -1,4 +1,34 @@
 
+ArrayList<Tile> parseTilesIntoSet(){
+  ArrayList<Tile> result= new ArrayList<Tile>();
+  PImage tilesImage = loadImage(FILENAME);
+  if (tilesImage == null) {
+    return result;
+  }
+  color black = color(0,0,0);
+  for (int x=0; x< (tilesImage.width-3)/4+1; x++) {
+    for (int y=0; y< (tilesImage.height-3)/4+1; y++) {
+      PImage image = tilesImage.get(x*4, y*4, 3, 3);
+      int likelyhood = (int)pow(255-(int)red(tilesImage.get(x*4, y*4+3)),1);
+      if (!( new Tile(image,likelyhood).isAllWhite()) && ((int)tilesImage.get(x*4+1, y*4+3) != color(255,0,0)))
+      {
+        result.add(new Tile(image, likelyhood));
+        if(tilesImage.get(x*4+3,y*4)==black){
+          Tile rotation1 = new Tile( get90DegClockwiseRotation(image), likelyhood);
+          Tile rotation2 = new Tile( get90DegClockwiseRotation(rotation1.image), likelyhood);
+          Tile rotation3 = new Tile( get90DegClockwiseRotation(rotation2.image), likelyhood);
+          result.add(rotation1);
+          result.add(rotation2);
+          result.add(rotation3);
+          print("added one");
+        }
+      }
+    }
+  }
+  
+  return result;
+}
+
 boolean imagesEqual(PImage image1, PImage image2) {
   if (image1 == null || image2==null) {
     return false;
@@ -14,52 +44,9 @@ boolean imagesEqual(PImage image1, PImage image2) {
 }
 
 
-void flipTilesAround(int x, int y, boolean aggressive) {
-  ArrayList<TileLoc> toReset = new ArrayList<TileLoc>();
-  if(aggressive){
-    //toReset.add(new TileLoc(x-1, y-1));
-    //toReset.add(new TileLoc(x+1, y+1));
-  }
-  
-  toReset.add(new TileLoc(x-1, y));
 
-  toReset.add(new TileLoc(x+1, y));
 
-  toReset.add(new TileLoc(x, y+1));
 
-  toReset.add(new TileLoc(x, y-1));
-
-  if(aggressive){
-    //toReset.add(new TileLoc(x+1, y-1));
-   // toReset.add(new TileLoc(x-1, y+1));
-  }
-  if (random(1)<.5) {
-    Collections.reverse(toReset);
-  }
-  if (random(1)<.5) {
-    toReset.add(1, new TileLoc(x, y));
-  } else {
-    toReset.add(3, new TileLoc(x, y));
-  }
-  //Collections.shuffle(toReset);
-
-  flipTilesAndNeighbors(toReset);
-}
-
-void flipTopLeft(boolean aggressive) {
-  
-  for (int x=0; x<mapWidth; x++) {
-    for (int y=0; y<mapWidth; y++) {
-      //for (int i=0; i<400; i++) {
-      //int x=(int)random(mapWidth);
-      //int y=(int)random(mapWidth);
-      if (map[x][y]==null) {
-        flipTilesAround(x, y, false);
-      }
-      //}
-    }
-  }
-}
 
 Directions opposite (Directions in) {
   if (in == Directions.up) {
@@ -80,18 +67,7 @@ boolean isWithinMap(TileLoc loc) {
 }
 
 
-void placeTileAt(int x, int y) {
-  int ex = x;//(int)random(mapWidth);
-  int why = y;//(int)random(mapWidth);
-  if (map[ex][why] == null) {
-    ArrayList<Tile> options = validTilesAt(x, y);
-    Tile tile=null;
-    if (options.size()>0) {
-      tile =  getRandomChoice(options);
-    }
-    map[ex][why] = tile;
-  }
-}
+
 
 Tile getRandomChoice(ArrayList<Tile> list){
   int weightSum =0;
@@ -112,35 +88,8 @@ Tile getRandomChoice(ArrayList<Tile> list){
 }
 
 
-ArrayList<Tile> validTilesAt(int tileX, int tileY) {
-  ArrayList<Tile> result = new ArrayList<Tile>();
-  for (Tile test : wangTiles) {
-    if (isValidPlacement(test, tileX, tileY)) {
-      result.add(test);
-    }
-  }
-  return result;
-}
 
-boolean isValidPlacement(Tile tile, int tileX, int tileY) {
-  boolean result =  
-    isValidNeighbor(tile, tileX, tileY, tileX+1, tileY) &&
-    isValidNeighbor(tile, tileX, tileY, tileX-1, tileY) &&
-    isValidNeighbor(tile, tileX, tileY, tileX, tileY+1) &&
-    isValidNeighbor(tile, tileX, tileY, tileX, tileY-1);
 
-  return result;
-}
-
-boolean isValidNeighbor(Tile tile, int tileX, int tileY, int neighborX, int neighborY) {
-  if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0) {
-    return true;
-  } else {
-
-    Directions direction = getDirectionFromDelta(neighborX-tileX, neighborY-tileY);             
-    return tile.isValidNeighbor(map[neighborX][neighborY], direction);
-  }
-}
 
 Directions getDirectionFromDelta(int dX, int dY) {
   if (dX==0 && dY == -1) {
