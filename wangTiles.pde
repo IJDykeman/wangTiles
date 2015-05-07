@@ -25,7 +25,7 @@ void checkForUpdatedTileImage(){
 
 
 void resetMap(){
-  map = new Map(mapWidth,tileWidth);
+  map = new ScoredMap(mapWidth,tileWidth);
 }
 
 
@@ -54,7 +54,7 @@ void keyPressed() {
 void mouseClicked() {
   int x=mouseX/tileWidth;
   int y=mouseY/tileWidth;
-  map.flipTilesAround(x, y,false);
+  //map.flipTilesAround(x, y);
 }
 
 

@@ -20,7 +20,6 @@ ArrayList<Tile> parseTilesIntoSet(){
           result.add(rotation1);
           result.add(rotation2);
           result.add(rotation3);
-          print("added one");
         }
       }
     }
@@ -44,7 +43,21 @@ boolean imagesEqual(PImage image1, PImage image2) {
 }
 
 
-
+float fractionOfImagesEqual(PImage image1, PImage image2) {
+  float size = image1.width*image1.height;
+  float numMatchingPixels = 0;
+  if (image1 == null || image2==null) {
+    return 1;
+  }
+  for (int x=0; x<image1.width; x++) {
+    for (int y=0; y<image1.height; y++) {
+      if (image1.get(x, y) != image2.get(x, y)) {
+        numMatchingPixels++;
+      }
+    }
+  }
+  return numMatchingPixels/size;
+}
 
 
 
@@ -62,11 +75,6 @@ Directions opposite (Directions in) {
   }
 }
 
-boolean isWithinMap(TileLoc loc) {
-  return loc.x<mapWidth && loc.x >= 0 && loc.y<mapWidth && loc.y >= 0;
-}
-
-
 
 
 Tile getRandomChoice(ArrayList<Tile> list){
@@ -75,7 +83,6 @@ Tile getRandomChoice(ArrayList<Tile> list){
     weightSum += test.likelyhood;
    
   }
-
   int choice = (int)random(weightSum);
   Collections.shuffle(list);
   for (Tile test2 : list){

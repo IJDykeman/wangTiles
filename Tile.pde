@@ -18,15 +18,21 @@ class Tile{
   }
   
   boolean isValidNeighbor(Tile neighbor, Directions directionToNeighbor){
-    
     if( neighbor == null){
-      
       return true;
     }
-    
     boolean edgesMatch =imagesEqual( getStrip(directionToNeighbor),neighbor.getStrip(opposite(directionToNeighbor)));
     //println (directionToNeighbor);
     return edgesMatch;
+
+  }
+  
+  
+  float edgeFractionInCommonWithNeighbor(Tile neighbor, Directions directionToNeighbor){
+    if( neighbor == null){
+      return 1;
+    }
+    return fractionOfImagesEqual( getStrip(directionToNeighbor),neighbor.getStrip(opposite(directionToNeighbor)));
 
   }
 
@@ -35,16 +41,12 @@ class Tile{
     switch(direction){
       case up:
        return image.get(0,0,3,1);
-
       case down:
        return image.get(0,2,3,1);
-
       case left:
        return image.get(0,0,1,3);
-
       default: //right
        return image.get(2,0,1,3);
-
     }
   }
   
