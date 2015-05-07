@@ -8,7 +8,7 @@ class Map {
   int timeSinceMapBuild =0;
 
   Map(int imapWidth, int itileWidth) {
-    tilesImage = loadImage(FILENAME)
+    tilesImage = loadImage(FILENAME);
     mapWidth = imapWidth;
     tileWidth = itileWidth;
     timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
