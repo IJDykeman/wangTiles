@@ -3,15 +3,15 @@ import java.util.Collections;
 Map map;
 boolean showLines = false;
 
-int tileWidth = 6;
-int mapWidth = 130;
+int tileWidth = 16;
+int mapWidth = 35;
 String FILENAME = "wangTiles.png";
 
 
 void setup() {
   frameRate(10000);
   size(mapWidth*tileWidth, mapWidth*tileWidth);
-  smooth();
+  noSmooth();
   resetMap();
 
 }

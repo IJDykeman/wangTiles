@@ -51,7 +51,7 @@ float fractionOfImagesEqual(PImage image1, PImage image2) {
   }
   for (int x=0; x<image1.width; x++) {
     for (int y=0; y<image1.height; y++) {
-      if (image1.get(x, y) != image2.get(x, y)) {
+      if (image1.get(x, y) == image2.get(x, y)) {
         numMatchingPixels++;
       }
     }

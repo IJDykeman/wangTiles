@@ -30,7 +30,7 @@ class Tile{
   
   float edgeFractionInCommonWithNeighbor(Tile neighbor, Directions directionToNeighbor){
     if( neighbor == null){
-      return 1;
+      return 0;
     }
     return fractionOfImagesEqual( getStrip(directionToNeighbor),neighbor.getStrip(opposite(directionToNeighbor)));
 
