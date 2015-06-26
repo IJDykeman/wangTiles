@@ -14,6 +14,7 @@ class ScoredMap extends Map {
     tileWidth = itileWidth;
     timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
     wangTiles = parseTilesIntoSet();
+    normalizeTileLikelyhoods(wangTiles);
     tiles = new Tile[mapWidth][mapWidth];
     ArrayList<PVector> tileLocs = new ArrayList<PVector>();
     for (int x=0; x<mapWidth; x++) {
@@ -23,21 +24,72 @@ class ScoredMap extends Map {
     }
     Collections.shuffle(tileLocs);
     for (PVector test : tileLocs) {
-      placeRandomTileAt((int)test.x, (int)test.y);
+      placeBestTile((int)test.x,(int)test.y);//placeRandomTileAt((int)test.x, (int)test.y);
     }
     print (wangTiles);
+    tiles = new ConstrainedMap(mapWidth,tileWidth).tiles;
   }
-
-
-
 
   void update() {
     textSize(24);
     text(mapScore(), 20, 20);
-    for (int i=0; i<50; i++) {
-      tryRandomizingRegion();
+    //improveMethod3()
+    //for (int i=0; i<50; i++) {
+    //  tryRandomizingRegion();
+    //}
+  }
+  
+  void improveMethod3(){
+    for (int x=0; x<mapWidth; x++) {
+      for (int y=0; y<mapWidth; y++) {
+        
+      }
     }
   }
+
+  ArrayList<TileLoc> getTilesInRandomOrder(){
+   ArrayList<TileLoc> tileLocs = new ArrayList<TileLoc>();
+    for (int x=0; x<mapWidth; x++) {
+      for (int y=0; y<mapWidth; y++) {
+        tileLocs.add(new TileLoc(x, y));
+      }
+    }
+    Collections.shuffle(tileLocs);
+    return tileLocs; 
+  }
+
+  void placeBestTile(int x, int y){
+    float bestScore = -9999999;
+    ArrayList<Tile>bestTiles = new ArrayList<Tile>();
+    for (Tile tile : wangTiles){
+      float score = placementScore(tile,x,y);
+      if (placementScore(tile,x,y)>bestScore){
+        bestScore = placementScore(tile,x,y);
+        bestTiles = new ArrayList<Tile>();
+        bestTiles.add(tile);
+      }
+    }
+    tiles[x][y] = bestTiles.get((int)random(bestTiles.size()));
+  }
+  
+  void placeWeightedGuess(int x, int y){
+    int weightSum =0;
+    for (Tile test : wangTiles){
+      weightSum += test.likelyhood+1000*placementScore(test, x, y);
+     
+    }
+    int choice = (int)random(weightSum);
+    Collections.shuffle(wangTiles);
+    for (Tile test2 : wangTiles){
+      choice -= test2.likelyhood+1000*placementScore(test2,x,y);
+      if(choice<=0){
+        tiles[x][y] = test2;
+      }
+    }
+   
+  }
+
+
 
   void randomizeRegion (int x1, int y1, int x2, int y2) {
     assert (x1<x2 && y1<y2);
@@ -131,7 +183,7 @@ class ScoredMap extends Map {
   }
 
   float scoreOfNeighbor(Tile tile, int tileX, int tileY, int neighborX, int neighborY) {
-    if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0) {
+    if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0 || tile == null) {
       return 1;
     } else {
 

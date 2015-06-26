@@ -131,3 +131,12 @@ PImage get90DegClockwiseRotation(PImage toRotate) {
   return get45DegClockwiseRotation(result);
 }
 
+void normalizeTileLikelyhoods(ArrayList<Tile> tiles){
+  float totalWeights = 0;
+  for (Tile tile: tiles){
+    totalWeights += tile.likelyhood;
+  }
+  for (Tile tile: tiles){
+    tile.likelyhood /= totalWeights;
+  }
+}

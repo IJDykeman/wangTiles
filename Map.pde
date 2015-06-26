@@ -46,5 +46,16 @@ class Map {
       }
     }
   }
+  
+  ArrayList<TileLoc> getTilesInRandomOrder(){
+   ArrayList<TileLoc> tileLocs = new ArrayList<TileLoc>();
+    for (int x=0; x<mapWidth; x++) {
+      for (int y=0; y<mapWidth; y++) {
+        tileLocs.add(new TileLoc(x, y));
+      }
+    }
+    Collections.shuffle(tileLocs);
+    return tileLocs; 
+  }
 }
 

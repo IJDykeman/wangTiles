@@ -7,6 +7,7 @@ class ConstrainedMap extends Map {
     tileWidth = itileWidth;
     timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
     wangTiles = parseTilesIntoSet();
+    //normalizeTileLikelyhoods(wangTiles);
     tiles = new Tile[mapWidth][mapWidth];
     ArrayList<PVector> tileLocs = new ArrayList<PVector>();
     for (int x=0; x<mapWidth; x++) {
