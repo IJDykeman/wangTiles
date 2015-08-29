@@ -5,7 +5,7 @@ class Map {
 
   ArrayList<Tile> wangTiles;
   PImage tilesImage;
-  int timeSinceMapBuild =0;
+  int timeSinceMapBuild = 0;
 
 
   void update() {

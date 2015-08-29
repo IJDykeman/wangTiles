@@ -3,8 +3,8 @@ import java.util.Collections;
 Map map;
 boolean showLines = false;
 
-int tileWidth = 16;
-int mapWidth = 35;
+int tileWidth = 10;
+int mapWidth = 50;
 String FILENAME = "wangTiles.png";
 
 

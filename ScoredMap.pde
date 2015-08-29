@@ -33,16 +33,16 @@ class ScoredMap extends Map {
   void update() {
     textSize(24);
     text(mapScore(), 20, 20);
-    //improveMethod3()
+    improveMethod3();
     //for (int i=0; i<50; i++) {
-    //  tryRandomizingRegion();
-    //}
+     // tryRandomizingRegion();
+   // }
   }
   
   void improveMethod3(){
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
-        
+        placeBestTile(x, y);
       }
     }
   }
