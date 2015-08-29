@@ -3,10 +3,11 @@ Experiments with wang-like tiles
 
 ![User created tiles]
 (https://github.com/IJDykeman/wangTiles/blob/master/wangTiles_expanded.png)
-A user can create tiles like these
+
+A user can create tiles like these ...
 ![Map generated with user created tiles]
 (https://raw.githubusercontent.com/IJDykeman/wangTiles/master/example_map.png)
-To generate a map like this.
+... to generate a map like this!
 
 
 
