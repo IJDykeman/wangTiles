@@ -4,13 +4,13 @@ Map map;
 boolean showLines = false;
 
 int tileWidth = 10;
-int mapWidth = 50;
+int mapWidth = 100;
 String FILENAME = "wangTiles.png";
 
 
 void setup() {
   frameRate(10000);
-  size(mapWidth*tileWidth, mapWidth*tileWidth);
+  size(1000, 1000);
   noSmooth();
   resetMap();
 
@@ -25,20 +25,19 @@ void checkForUpdatedTileImage(){
 
 
 void resetMap(){
-  map = new ScoredMap(mapWidth,tileWidth);
+  map = new ConstrainedMap(mapWidth,tileWidth);
 }
 
 
 void draw() {
   checkForUpdatedTileImage();
+    map.update();
+
   background(0);
   map.draw();
   if (showLines) {
     map.drawGrid();
   }
-  map.update();
-
-
 }
 
 void keyPressed() {
@@ -56,5 +55,3 @@ void mouseClicked() {
   int y=mouseY/tileWidth;
   //map.flipTilesAround(x, y);
 }
-
-
