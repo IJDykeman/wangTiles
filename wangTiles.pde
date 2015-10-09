@@ -4,13 +4,14 @@ Map map;
 boolean showLines = false;
 
 int tileWidth = 10;
-int mapWidth = 100;
+int mapWidth = 80;
 String FILENAME = "wangTiles.png";
 
 
 void setup() {
   frameRate(10000);
-  size(1000, 1000);
+  final int windowWidth = tileWidth*mapWidth;
+  size(windowWidth, windowWidth);
   noSmooth();
   resetMap();
 

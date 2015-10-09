@@ -83,7 +83,9 @@ class ConstrainedMap extends Map {
       Collections.reverse(toReset);
     }
     if (random(1)<.5) {
-      toReset.add(1, new TileLoc(x, y));
+      toReset.add((int)random(1,3), new TileLoc(x, y));
+      toReset.add(2, new TileLoc(x, y));
+
     } else {
       toReset.add(3, new TileLoc(x, y));
     }
