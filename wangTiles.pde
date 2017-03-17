@@ -7,11 +7,18 @@ boolean showLines = false;
 int tileWidth = 16;
 int mapWidth = 35;
 String FILENAME = "wangTiles.png";
-
+ArrayList<Tile> wangTiles;
+PImage tilesImage;
+HashMap<Tile, Integer> tileToNum= new HashMap<Tile, Integer>();
 
 void setup() {
-  frameRate(10000);
-  final int windowWidth = tileWidth*mapWidth;
+  tilesImage = loadImage(FILENAME);
+  wangTiles = parseTilesIntoSet();
+  for (int i = 0; i < wangTiles.size(); i++){
+    tileToNum.put(wangTiles.get(i),i);
+  }
+  frameRate(10);
+  final int windowWidth = tileWidth * mapWidth;
   size(windowWidth, windowWidth);
   noSmooth();
   resetMap();
@@ -19,7 +26,7 @@ void setup() {
 }
 
 void checkForUpdatedTileImage(){
-  if (!imagesEqual(loadImage(FILENAME), map.tilesImage)) {
+  if (!imagesEqual(loadImage(FILENAME), tilesImage)) {
     resetMap();
   }
 }

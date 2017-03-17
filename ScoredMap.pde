@@ -5,7 +5,7 @@ class ScoredMap extends Map {
     mapWidth = toCopy.mapWidth;
     tileWidth = toCopy.tileWidth;
     timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
-    wangTiles = toCopy.wangTiles;
+    wangTiles = wangTiles;
   }
 
   ScoredMap(int imapWidth, int itileWidth) {

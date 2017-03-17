@@ -5,8 +5,7 @@ class Map {
   int tileWidth;
   int mapWidth;
 
-  ArrayList<Tile> wangTiles;
-  PImage tilesImage;
+
   int timeSinceMapBuild = 0;
 
 

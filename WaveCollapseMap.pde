@@ -3,17 +3,17 @@ class WaveCollapseMap extends Map {
   HashMap<Tile, TileProbabilitySphere> spheres;
 
   WaveCollapseMap(int imapWidth, int itileWidth) {
-    tilesImage = loadImage(FILENAME);
+
+
     mapWidth = imapWidth;
     tileWidth = itileWidth;
     timeSinceMapBuild = 0; //reset so that this map's processing time counts from 0
-    wangTiles = parseTilesIntoSet();
     //normalizeTileLikelyhoods(wangTiles);
     tiles = new Tile[mapWidth][mapWidth];
     tileDistributions = new TileProbabilityDistribution[mapWidth][mapWidth];
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
-        tileDistributions[x][y] = new TileProbabilityDistribution(wangTiles, 1d);
+        tileDistributions[x][y] = new TileProbabilityDistribution(1d);
         tileDistributions[x][y].normalize();
       }
     }
