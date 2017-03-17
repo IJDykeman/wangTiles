@@ -116,7 +116,7 @@ class TileProbabilitySphere extends Map{
   TileProbabilitySphere(Tile _centralTile, ArrayList<Tile> _wangTiles){
     
     wangTiles = _wangTiles;
-    mapWidth = 9;
+    mapWidth = sphereWidth;
     tileDistributions = new TileProbabilityDistribution[mapWidth][mapWidth];
     centralTile = _centralTile;
 //    tiles[tileWidth/2][tileWidth/2] = centralTile;

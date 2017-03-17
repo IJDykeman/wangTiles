@@ -77,7 +77,7 @@ class WaveCollapseMap extends Map {
   void multiplyInRectifiedTile(TileProbabilitySphere sphere, TileLoc loc){
     for (int x=0; x < mapWidth; x++) {
       for (int y=0; y < mapWidth; y++) {
-        tileDistributions[x][y] = multiply(tileDistributions[x][y], sphere.getDistributionAt(new TileLoc(x - loc.x + 9, y - loc.y + 9)));
+        tileDistributions[x][y] = multiply(tileDistributions[x][y], sphere.getDistributionAt(new TileLoc(x - loc.x + (sphereWidth-1), y - loc.y + (sphereWidth-1))));
         tileDistributions[x][y].normalize();
       }
     }

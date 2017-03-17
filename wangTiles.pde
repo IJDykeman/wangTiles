@@ -5,6 +5,7 @@ Map map;
 boolean showLines = false;
 
 int tileWidth = 16;
+int sphereWidth = 9;
 int mapWidth = 35;
 String FILENAME = "wangTiles.png";
 ArrayList<Tile> wangTiles;
