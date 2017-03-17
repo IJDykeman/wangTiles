@@ -1,6 +1,4 @@
 class ConstrainedMap extends Map {
-
-
   ConstrainedMap(int imapWidth, int itileWidth) {
     tilesImage = loadImage(FILENAME);
     mapWidth = imapWidth;
@@ -23,8 +21,8 @@ class ConstrainedMap extends Map {
 
   void update() {
     int numIterations = 1;
-    if (timeSinceMapBuild>10) {
-      numIterations = 20;
+    if (timeSinceMapBuild>7) {
+      numIterations = 5;
     }
     // if the simulation has been running a long time,
     // up the amount of modification done per frame.
@@ -93,35 +91,5 @@ class ConstrainedMap extends Map {
   }
   
 
-  ArrayList<Tile> validTilesAt(int tileX, int tileY) {
-    ArrayList<Tile> result = new ArrayList<Tile>();
-    for (Tile test : wangTiles) {
-      if (isValidPlacement(test, tileX, tileY)) {
-        result.add(test);
-      }
-    }
-    return result;
-  }
-
-
-  boolean isValidPlacement(Tile tile, int tileX, int tileY) {
-    boolean result =  
-      isValidNeighbor(tile, tileX, tileY, tileX+1, tileY) &&
-      isValidNeighbor(tile, tileX, tileY, tileX-1, tileY) &&
-      isValidNeighbor(tile, tileX, tileY, tileX, tileY+1) &&
-      isValidNeighbor(tile, tileX, tileY, tileX, tileY-1);
-
-    return result;
-  }
-
-  boolean isValidNeighbor(Tile tile, int tileX, int tileY, int neighborX, int neighborY) {
-    if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0) {
-      return true;
-    } else {
-
-      Directions direction = getDirectionFromDelta(neighborX-tileX, neighborY-tileY);             
-      return tile.isValidNeighbor(tiles[neighborX][neighborY], direction);
-    }
-  }
 }
 

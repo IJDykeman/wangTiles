@@ -1,10 +1,11 @@
 import java.util.Collections;
+import java.util.*;
 
 Map map;
 boolean showLines = false;
 
-int tileWidth = 10;
-int mapWidth = 80;
+int tileWidth = 16;
+int mapWidth = 35;
 String FILENAME = "wangTiles.png";
 
 
@@ -26,7 +27,7 @@ void checkForUpdatedTileImage(){
 
 
 void resetMap(){
-  map = new ConstrainedMap(mapWidth,tileWidth);
+  map = new WaveCollapseMap(mapWidth,tileWidth);
 }
 
 

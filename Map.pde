@@ -1,3 +1,5 @@
+
+
 class Map {
   Tile[][] tiles;
   int tileWidth;
@@ -56,6 +58,91 @@ class Map {
     }
     Collections.shuffle(tileLocs);
     return tileLocs; 
+  }
+  
+  
+  ArrayList<Tile> validTilesAt(int tileX, int tileY) {
+    ArrayList<Tile> result = new ArrayList<Tile>();
+    for (Tile test : wangTiles) {
+      if (isValidPlacement(test, tileX, tileY)) {
+        result.add(test);
+      }
+    }
+    return result;
+  }
+
+  boolean tileListContains(ArrayList<TileLoc> l, TileLoc t){
+    for(TileLoc o : l){
+      if(o.x == t.x && o.y == t.y){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  ArrayList<TileLoc> BfsFrom(TileLoc startLoc){
+//    println("up");
+    ArrayList<TileLoc> queue = new ArrayList<TileLoc>();
+    ArrayList<TileLoc> visited = new ArrayList<TileLoc>();
+//    HashSet<TileLoc> visited = new HashSet<TileLoc>();
+    queue.add(startLoc);
+    while (queue.size() > 0){
+      TileLoc current = queue.remove(0);
+      visited.add(current);
+      queue.remove(current);
+      for (TileLoc neighbor : getNeighbors(current)){
+        if (! tileListContains(visited, neighbor)){
+          queue.add(neighbor);
+        }
+      }
+    } 
+    println("here");
+    return visited;
+  }
+  
+  ArrayList<TileLoc> getNeighbors(TileLoc from){
+    ArrayList<TileLoc> results = new ArrayList<TileLoc>(); 
+    if (from.x < mapWidth - 1){
+      results.add(new TileLoc(from.x + 1, from.y));
+    }
+    if (from.x >= 1){
+      results.add(new TileLoc(from.x - 1, from.y));
+    }
+    if (from.y < mapWidth - 1){
+      results.add(new TileLoc(from.x, from.y + 1));
+    }
+    if (from.y >= 1){
+      results.add(new TileLoc(from.x, from.y - 1));
+    }
+    return results;
+  }
+
+  boolean isValidPlacement(Tile tile, int tileX, int tileY) {
+    boolean result =  
+      isValidNeighbor(tile, tileX, tileY, tileX+1, tileY) &&
+      isValidNeighbor(tile, tileX, tileY, tileX-1, tileY) &&
+      isValidNeighbor(tile, tileX, tileY, tileX, tileY+1) &&
+      isValidNeighbor(tile, tileX, tileY, tileX, tileY-1);
+
+    return result;
+  }
+
+  boolean isValidNeighbor(Tile tile, int tileX, int tileY, int neighborX, int neighborY) {
+    if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0) {
+      return true;
+    } else {
+      Directions direction = getDirectionFromDelta(neighborX-tileX, neighborY-tileY);             
+      return tile.isValidNeighbor(tiles[neighborX][neighborY], direction);
+    }
+  }
+  
+  boolean isValidNeighbor(Tile tile, int tileX, int tileY, Tile neighbor, int neighborX, int neighborY) {
+    if (neighborX>=mapWidth || neighborY>=mapWidth || neighborX<0 || neighborY<0) {
+      return true;
+    } else {
+      Directions direction = getDirectionFromDelta(neighborX-tileX, neighborY-tileY);             
+      return tile.isValidNeighbor(neighbor, direction);
+    }
   }
 }
 
