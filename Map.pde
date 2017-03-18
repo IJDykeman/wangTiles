@@ -8,7 +8,9 @@ class Map {
 
   int timeSinceMapBuild = 0;
 
-
+  void updateAtLocation(TileLoc loc){
+  }
+  
   void update() {
   }
 
@@ -95,7 +97,8 @@ class Map {
         }
       }
     } 
-    println("here");
+    assert(visited.size() == mapWidth * mapWidth);
+    print (".");
     return visited;
   }
   

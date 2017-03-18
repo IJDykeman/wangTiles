@@ -1,7 +1,13 @@
 class WaveCollapseMap extends Map {
   TileProbabilityDistribution[][] tileDistributions;
   HashMap<Tile, TileProbabilitySphere> spheres;
-
+  boolean[][] screenValid;
+  double[] priorTileProbabilities;
+  int numInitialPlacements = 30;
+  Random rand = new Random();
+  ArrayList<TileLoc> tileLocs = new ArrayList<TileLoc>();
+  
+  
   WaveCollapseMap(int imapWidth, int itileWidth) {
 
 
@@ -11,20 +17,48 @@ class WaveCollapseMap extends Map {
     //normalizeTileLikelyhoods(wangTiles);
     tiles = new Tile[mapWidth][mapWidth];
     tileDistributions = new TileProbabilityDistribution[mapWidth][mapWidth];
+    screenValid = new boolean[mapWidth][mapWidth];
+    
+    priorTileProbabilities = new double[wangTiles.size()];
+    for (int i = 0; i < wangTiles.size(); i++){
+      priorTileProbabilities[i] = Math.log(max(1, wangTiles.get(i).likelyhood )/ 255.0);
+      println(wangTiles.get(i).likelyhood);
+    }
+
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
-        tileDistributions[x][y] = new TileProbabilityDistribution(1d);
+        tileDistributions[x][y] = new TileProbabilityDistribution(priorTileProbabilities.clone());
+//        tileDistributions[x][y] = new TileProbabilityDistribution(1d);
         tileDistributions[x][y].normalize();
+        screenValid[x][y]=true;
       }
     }
     
     spheres = new HashMap<Tile, TileProbabilitySphere>();
-    println("initializing spheres...");
+    print("we have "); print(wangTiles.size()); println(" Wang tiles."); 
+    print("initializing spheres ");
     for (Tile tile : wangTiles){
       spheres.put(tile, new TileProbabilitySphere(tile, wangTiles)); 
     }
-    println("    done.");
+    println(" done.");
+    
+    
+    for (int x=0; x<mapWidth; x++) {
+      for (int y=0; y<mapWidth; y++) {
+        tileLocs.add(new TileLoc(x, y));
+      }
+    }
+    
+    ArrayList<TileLoc> RandomTileLocs = new ArrayList<TileLoc>(tileLocs);
+    Collections.shuffle(RandomTileLocs);
+    for (int i =0; i< numInitialPlacements; i++){
+      TileLoc test = RandomTileLocs.get(i);
+      placeTileAt(test.x, test.y);
+    }
+    println("finished map constructor.");
   }
+    
+  
   
 
 
@@ -48,6 +82,14 @@ class WaveCollapseMap extends Map {
       println("");
     }
   }
+  
+  void updateAtLocation(TileLoc loc){
+      TileLoc nextChoice = loc;
+      if (nextChoice != null){
+        Tile tileToPlace = tileDistributions[nextChoice.x][nextChoice.y].weightedTileSelect();
+        multiplyInRectifiedTile(tileToPlace, nextChoice);
+      }
+  }
 
   void update() {
 //    println("entropy:");
@@ -55,8 +97,8 @@ class WaveCollapseMap extends Map {
 //    println("sums:");
 //    printSums();
     int numIterations = 1;
-    if (timeSinceMapBuild>7) {
-      numIterations = 10;
+    if (timeSinceMapBuild>0) {
+      numIterations = 3;
     }
     println(timeSinceMapBuild);
     // if the simulation has been running a long time,
@@ -64,23 +106,38 @@ class WaveCollapseMap extends Map {
     for (int i=0; i<numIterations; i++) {
 //      flipTopLeft();
       TileLoc nextChoice = lowestEntopy();
-      Tile tileToPlace = tileDistributions[nextChoice.x][nextChoice.y].weightedTileSelect();
-      tiles[nextChoice.x][nextChoice.y] = tileToPlace;
-      multiplyInRectifiedTile(spheres.get(tileToPlace), nextChoice);
-      print("tile location placed: "); print((nextChoice.x)); print("  ");println((nextChoice.y));
-      
+      if (nextChoice != null){
+        Tile tileToPlace = tileDistributions[nextChoice.x][nextChoice.y].weightedTileSelect();
+        multiplyInRectifiedTile(tileToPlace, nextChoice);
+        
+
+        //print("tile location placed: "); print((nextChoice.x)); print("  ");println((nextChoice.y));
+      }
+      else{
+        delay(100000);
+      }
     }
 
     timeSinceMapBuild++;
   }
 
-  void multiplyInRectifiedTile(TileProbabilitySphere sphere, TileLoc loc){
-    for (int x=0; x < mapWidth; x++) {
-      for (int y=0; y < mapWidth; y++) {
-        tileDistributions[x][y] = multiply(tileDistributions[x][y], sphere.getDistributionAt(new TileLoc(x - loc.x + (sphereWidth-1), y - loc.y + (sphereWidth-1))));
+  void multiplyInRectifiedTile(Tile tileToPlace, TileLoc loc){
+    if(tiles[loc.x][loc.y] != null){
+      return;
+    }
+    TileProbabilitySphere sphere = spheres.get(tileToPlace);
+    TileLoc editing = new TileLoc(0,0);
+    for (int x=  max(loc.x - sphereWidth/2-1,0); x < min(loc.x  + sphereWidth/2+1, mapWidth) ; x++) {
+      for (int y=max(loc.y - sphereWidth/2-1,0); y < min(loc.y  + sphereWidth/2+1, mapWidth); y++) {
+        editing.x = x - loc.x + (sphereWidth-1);
+        editing.y = y - loc.y + (sphereWidth-1);
+        tileDistributions[x][y].multiply(sphere.getDistributionAt(editing));
         tileDistributions[x][y].normalize();
+        screenValid[x][y] = false;
       }
     }
+    tiles[loc.x][loc.y] = tileToPlace;
+    
   }
   
   TileLoc lowestEntopy(){
@@ -95,6 +152,35 @@ class WaveCollapseMap extends Map {
       }
     }
     return best;
+//    ArrayList<Double> entropies = new ArrayList<Double>();
+//    double sum = 0;
+//    for (TileLoc loc : tileLocs){
+//      double entropy = tileDistributions[loc.x][loc.y].entropy();
+//      sum += entropy;
+//      entropies.add(entropy);
+//    }
+//    
+//    double psum = 0;
+//    for (int i = 0; i<entropies.size();i++){
+//      double p = entropies.get(i) / sum;
+//      entropies.set(i, p);
+//      psum += p;
+//    }
+//    
+//    for (int i = 0; i<entropies.size();i++){
+//      entropies.set(i, entropies.get(i) / psum);
+//    }
+//    
+//    double r = rand.nextFloat();
+//    assert(r <= 1);
+//    for (int i = 0; i < entropies.size(); i++){
+//      double p = entropies.get(i);
+//      r-=p;
+//      if (r <= 0){
+//        return tileLocs.get(i);
+//      }
+//  }
+//  return null;
   }
   
  
@@ -102,31 +188,38 @@ class WaveCollapseMap extends Map {
     int ex = x;//(int)random(mapWidth);
     int why = y;//(int)random(mapWidth);
     if (tiles[ex][why] == null) {
-      ArrayList<Tile> options = validTilesAt(x, y);
-      Tile tile=null;
-      if (options.size()>0) {
-        tile =  getRandomChoice(options);
-      }
-      tiles[ex][why] = tile;
+      Tile tileToPlace = tileDistributions[ex][why].weightedTileSelect();
+      multiplyInRectifiedTile(tileToPlace, new TileLoc(ex,why));
     }
+    
   }
 
   void draw() {
+    println("drawing...");
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
-        if (tiles[x][y] != null) {
-          tiles[x][y].draw(x, y);
-        } else {
-          for (Tile tile : wangTiles){        
-            double p = tileDistributions[x][y].getProbability(tile);
-            tint(255,(int)(255*p));
-            tile.draw(x, y);
-            tint(255,(int)255*1);
-
+        if (!screenValid[x][y]){
+          if (tiles[x][y] != null) {
+            tint(255,(int)255);
+            tiles[x][y].draw(x, y);
+            
+          } 
+          else {
+            
+            for (Tile tile : wangTiles){        
+              double p = tileDistributions[x][y].getProbability(tile);
+//              if(p > 1.0 / wangTiles.size()){
+                tint(255,(int)(255*p));
+                tile.draw(x, y);
+                
+//              }
+            }
           }
+          screenValid[x][y] = true;
         }
       }
     }
+    println("done.");
   }
   
 

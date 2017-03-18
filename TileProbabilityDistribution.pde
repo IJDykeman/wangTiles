@@ -9,7 +9,7 @@ class TileProbabilityDistribution{
   
   TileProbabilityDistribution(double uniform){
     for (int i = 0; i < wangTiles.size(); i++){
-      probabilities[i] = uniform;
+      probabilities[i] = Math.log(uniform);
     }
   }
   
@@ -17,14 +17,14 @@ class TileProbabilityDistribution{
     println("Distribution:");
     for (double p : probabilities){
       print("  ");
-      println(p);
+      println(Math.exp(p));
     }
   }
   
   float getTotalProbability(){
     float sum = 0;
     for (double p : probabilities){
-      sum += p;
+      sum += Math.exp(p);
     }
     return sum;
   }
@@ -32,8 +32,9 @@ class TileProbabilityDistribution{
   Tile highestProbabilityTile(){
     double highest = -1;
     int best = 0;
+    double p;
     for (int i = 0; i < wangTiles.size(); i++){
-      double p = probabilities[i];
+      p = probabilities[i];
       if (p > highest){
         highest = p;
         best = i;
@@ -45,9 +46,10 @@ class TileProbabilityDistribution{
   
   Tile weightedTileSelect(){
     double r = rand.nextFloat();
+    double p;
     assert(r <= 1);
     for (int i = 0; i < wangTiles.size(); i++){
-      double p = probabilities[i];
+      p = Math.exp(probabilities[i]);
       r-=p;
       if (r <= 0){
         return wangTiles.get(i);
@@ -61,7 +63,7 @@ class TileProbabilityDistribution{
     float sum =  getTotalProbability();
     assert(sum > 0);
     for (int i = 0; i < probabilities.length; i++){
-      probabilities[i] = probabilities[i] / sum;
+      probabilities[i] = probabilities[i] - Math.log(sum);
     }
   }
   
@@ -69,21 +71,33 @@ class TileProbabilityDistribution{
 //    println(tile);
 //    println(logits);
     assert(tile != null);
-    return probabilities[tileToNum.get(tile)];
+    return Math.exp(probabilities[tileToNum.get(tile)]);
   }
   
   void setProbability(Tile tile, double val){
-    probabilities[tileToNum.get(tile)] = val;
+    probabilities[tileToNum.get(tile)] = Math.log(val);
   }
   
   double entropy(){
     double sum = 0;
     for (double p : probabilities){
       if (p != 0){
-        sum += p * Math.log(p);
+        sum += p * Math.exp(p);
       }
     }
     return -sum;
+  }
+  
+  void multiply(TileProbabilityDistribution a){
+    for (int i = 0; i < a.probabilities.length; i++){
+      probabilities[i] = (a.probabilities[i] + probabilities[i]);
+    }
+  }
+  
+  void add(TileProbabilityDistribution a){
+    for (int i = 0; i < a.probabilities.length; i++){
+      probabilities[i] = (Math.log(Math.exp(a.probabilities[i]) + Math.exp(probabilities[i])));
+    }
   }
     
 }
@@ -91,7 +105,7 @@ class TileProbabilityDistribution{
 TileProbabilityDistribution multiply(TileProbabilityDistribution a, TileProbabilityDistribution b){
   double[] probabilities = new double[wangTiles.size()];
   for (int i = 0; i < a.probabilities.length; i++){
-    probabilities[i] = (a.probabilities[i] * b.probabilities[i]);
+    probabilities[i] = (a.probabilities[i] + b.probabilities[i]);
   }
   return new TileProbabilityDistribution(probabilities);
 }
@@ -99,7 +113,7 @@ TileProbabilityDistribution multiply(TileProbabilityDistribution a, TileProbabil
 TileProbabilityDistribution add(TileProbabilityDistribution a, TileProbabilityDistribution b){
   double[] probabilities = new double[wangTiles.size()];
   for (int i = 0; i < a.probabilities.length; i++){
-    probabilities[i] = (a.probabilities[i] + b.probabilities[i]);
+    probabilities[i] = (Math.log(Math.exp(a.probabilities[i]) + Math.exp(b.probabilities[i])));
   }
   return new TileProbabilityDistribution(probabilities);
 }
@@ -145,15 +159,16 @@ class TileProbabilitySphere extends Map{
   
   TileProbabilityDistribution calcDistAt(TileLoc loc){
     if(loc.x == mapWidth/2 && loc.y == mapWidth/2){
-      TileProbabilityDistribution result = new TileProbabilityDistribution(0d);
+      TileProbabilityDistribution result = new TileProbabilityDistribution(0.0000001d);
       result.setProbability(centralTile, 1d);
+      result.normalize();
       return result; 
     }
-    TileProbabilityDistribution result = new TileProbabilityDistribution(0.000001d);
+    TileProbabilityDistribution result = new TileProbabilityDistribution(0.0000001d);
     for (TileLoc neighbor : getNeighbors(loc)){
       if(tileDistributions[neighbor.x][neighbor.y] != null){
         TileProbabilityDistribution dist = transitionDistribution(neighbor, loc);
-        result = add(result, dist);
+        result.add(dist);
       }
 
     } 
@@ -163,18 +178,19 @@ class TileProbabilitySphere extends Map{
   
   TileProbabilityDistribution transitionDistribution(TileLoc from, TileLoc to){
 //      println("getting trans dist...");
-
+    Tile tileFrom;
+    Tile tileTo;
     double[] probabilities = new double[wangTiles.size()]; 
     for (int i = 0; i < wangTiles.size(); i++){
-      Tile tileTo = wangTiles.get(i);
+      tileTo = wangTiles.get(i);
       double p = 0d;
       for (int j = 0; j < wangTiles.size(); j++){
-        Tile tileFrom = wangTiles.get(j);
+        tileFrom = wangTiles.get(j);
         double valid = isValidNeighbor(tileTo, to.x, to.y, tileFrom, from.x, from.y) ? 1d : 0d;
         
-        p += tileDistributions[from.x][from.y].getProbability(tileFrom) * valid;
+        p += tileDistributions[from.x][from.y].getProbability(tileFrom) * valid;// * ((double)(1+tileTo.likelyhood) / 255.0) ;
       }
-      probabilities[i] = p;
+      probabilities[i] = Math.log(p);
     }
 //    println("got trans dist");
     return new TileProbabilityDistribution(probabilities);
