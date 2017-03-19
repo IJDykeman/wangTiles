@@ -7,9 +7,13 @@ class TileProbabilityDistribution{
     probabilities = _probabilities;
   }
   
+  double ENTROPY_INVALID = -348273498;
+  
+  double entropyCached = ENTROPY_INVALID;
+  
   TileProbabilityDistribution(double uniform){
     for (int i = 0; i < wangTiles.size(); i++){
-      probabilities[i] = Math.log(uniform);
+      probabilities[i] = (double)Math.log(uniform);
     }
   }
   
@@ -21,8 +25,8 @@ class TileProbabilityDistribution{
     }
   }
   
-  float getTotalProbability(){
-    float sum = 0;
+  double getTotalProbability(){
+    double sum = 0;
     for (double p : probabilities){
       sum += Math.exp(p);
     }
@@ -49,7 +53,7 @@ class TileProbabilityDistribution{
     double p;
     assert(r <= 1);
     for (int i = 0; i < wangTiles.size(); i++){
-      p = Math.exp(probabilities[i]);
+      p = (double)Math.exp(probabilities[i]);
       r-=p;
       if (r <= 0){
         return wangTiles.get(i);
@@ -60,44 +64,60 @@ class TileProbabilityDistribution{
   }
   
   void normalize(){
-    float sum =  getTotalProbability();
+    double sum =  getTotalProbability();
     assert(sum > 0);
     for (int i = 0; i < probabilities.length; i++){
-      probabilities[i] = probabilities[i] - Math.log(sum);
+      probabilities[i] = probabilities[i] - (double)Math.log(sum);
     }
+    invalidateEntropyCache();
   }
   
   double getProbability(Tile tile){
 //    println(tile);
 //    println(logits);
     assert(tile != null);
-    return Math.exp(probabilities[tileToNum.get(tile)]);
+    return (double)Math.exp(probabilities[tileToNum.get(tile)]);
   }
   
   void setProbability(Tile tile, double val){
-    probabilities[tileToNum.get(tile)] = Math.log(val);
+    probabilities[tileToNum.get(tile)] = (double)Math.log(val);
+    invalidateEntropyCache();
+  }
+  
+  void invalidateEntropyCache(){
+    entropyCached = ENTROPY_INVALID;
   }
   
   double entropy(){
+    if (entropyCached != ENTROPY_INVALID){
+      return entropyCached;
+    }
+    return calcEntropy();
+  }
+  
+  double calcEntropy(){
     double sum = 0;
     for (double p : probabilities){
       if (p != 0){
         sum += p * Math.exp(p);
       }
     }
-    return -sum;
+    entropyCached = -sum;
+    return entropyCached;
   }
   
   void multiply(TileProbabilityDistribution a){
     for (int i = 0; i < a.probabilities.length; i++){
       probabilities[i] = (a.probabilities[i] + probabilities[i]);
     }
+    invalidateEntropyCache();
   }
   
   void add(TileProbabilityDistribution a){
     for (int i = 0; i < a.probabilities.length; i++){
-      probabilities[i] = (Math.log(Math.exp(a.probabilities[i]) + Math.exp(probabilities[i])));
+      probabilities[i] = (double)(Math.log(Math.exp(a.probabilities[i]) + Math.exp(probabilities[i])));
     }
+    invalidateEntropyCache();
   }
     
 }
@@ -113,7 +133,7 @@ TileProbabilityDistribution multiply(TileProbabilityDistribution a, TileProbabil
 TileProbabilityDistribution add(TileProbabilityDistribution a, TileProbabilityDistribution b){
   double[] probabilities = new double[wangTiles.size()];
   for (int i = 0; i < a.probabilities.length; i++){
-    probabilities[i] = (Math.log(Math.exp(a.probabilities[i]) + Math.exp(b.probabilities[i])));
+    probabilities[i] = (double)(Math.log(Math.exp(a.probabilities[i]) + Math.exp(b.probabilities[i])));
   }
   return new TileProbabilityDistribution(probabilities);
 }
@@ -127,9 +147,8 @@ class TileProbabilitySphere extends Map{
   TileProbabilityDistribution[][] tileDistributions;
   Tile centralTile;
   
-  TileProbabilitySphere(Tile _centralTile, ArrayList<Tile> _wangTiles){
+  TileProbabilitySphere(Tile _centralTile){
     
-    wangTiles = _wangTiles;
     mapWidth = sphereWidth;
     tileDistributions = new TileProbabilityDistribution[mapWidth][mapWidth];
     centralTile = _centralTile;
@@ -150,7 +169,7 @@ class TileProbabilitySphere extends Map{
       return tileDistributions[loc.x][loc.y];
     }
     else{
-      TileProbabilityDistribution result = new TileProbabilityDistribution(1d);
+      TileProbabilityDistribution result = new TileProbabilityDistribution((double)1);
       result.normalize();
       return result;
     }
@@ -159,12 +178,12 @@ class TileProbabilitySphere extends Map{
   
   TileProbabilityDistribution calcDistAt(TileLoc loc){
     if(loc.x == mapWidth/2 && loc.y == mapWidth/2){
-      TileProbabilityDistribution result = new TileProbabilityDistribution(0.0000001d);
-      result.setProbability(centralTile, 1d);
+      TileProbabilityDistribution result = new TileProbabilityDistribution((double)0.0000001);
+      result.setProbability(centralTile, (double)1);
       result.normalize();
       return result; 
     }
-    TileProbabilityDistribution result = new TileProbabilityDistribution(0.0000001d);
+    TileProbabilityDistribution result = new TileProbabilityDistribution((double)0.0000001);
     for (TileLoc neighbor : getNeighbors(loc)){
       if(tileDistributions[neighbor.x][neighbor.y] != null){
         TileProbabilityDistribution dist = transitionDistribution(neighbor, loc);
@@ -183,14 +202,14 @@ class TileProbabilitySphere extends Map{
     double[] probabilities = new double[wangTiles.size()]; 
     for (int i = 0; i < wangTiles.size(); i++){
       tileTo = wangTiles.get(i);
-      double p = 0d;
+      double p = (double)0;
       for (int j = 0; j < wangTiles.size(); j++){
         tileFrom = wangTiles.get(j);
-        double valid = isValidNeighbor(tileTo, to.x, to.y, tileFrom, from.x, from.y) ? 1d : 0d;
+        double valid = isValidNeighbor(tileTo, to.x, to.y, tileFrom, from.x, from.y) ? (double)1 : (double)0;
         
         p += tileDistributions[from.x][from.y].getProbability(tileFrom) * valid;// * ((double)(1+tileTo.likelyhood) / 255.0) ;
       }
-      probabilities[i] = Math.log(p);
+      probabilities[i] = (double)Math.log(p);
     }
 //    println("got trans dist");
     return new TileProbabilityDistribution(probabilities);

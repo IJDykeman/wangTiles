@@ -1,12 +1,13 @@
 import java.util.Collections;
 import java.util.*;
 
+
 Map map;
 boolean showLines = false;
 
-int tileWidth = 9;
-int sphereWidth = 5;
-int mapWidth = 64;
+final int tileWidth = 6;
+final int sphereWidth = 5;
+final int mapWidth = 128;
 //String FILENAME = "wangTiles_adjusted_for_wave.png";
 String FILENAME = "dungeon.png";
 //String FILENAME = "wangTiles_classic.png";
@@ -14,16 +15,26 @@ ArrayList<Tile> wangTiles;
 PImage tilesImage;
 HashMap<Tile, Integer> tileToNum= new HashMap<Tile, Integer>();
 
+void settings(){
+  final int windowWidth = tileWidth * mapWidth;
+  size(windowWidth, windowWidth);
+  //noSmooth();
+  smooth(4);
+
+}
+
 void setup() {
   tilesImage = loadImage(FILENAME);
   wangTiles = parseTilesIntoSet();
+
+  println("so");
   for (int i = 0; i < wangTiles.size(); i++){
     tileToNum.put(wangTiles.get(i),i);
   }
   frameRate(100);
-  final int windowWidth = tileWidth * mapWidth;
-  size(windowWidth, windowWidth);
-  noSmooth();
+
+  
+  
   resetMap();
   background(0);
 
@@ -39,7 +50,7 @@ void checkForUpdatedTileImage(){
 
 void resetMap(){
   map = new WaveCollapseMap(mapWidth,tileWidth);
-//  map = new ConstrainedMap(mapWidth,tileWidth);
+  //map = new ConstrainedMap(mapWidth,tileWidth);
 
 }
 

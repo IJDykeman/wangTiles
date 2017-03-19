@@ -3,7 +3,7 @@ class WaveCollapseMap extends Map {
   HashMap<Tile, TileProbabilitySphere> spheres;
   boolean[][] screenValid;
   double[] priorTileProbabilities;
-  int numInitialPlacements = 30;
+  int numInitialPlacements = 90;
   Random rand = new Random();
   ArrayList<TileLoc> tileLocs = new ArrayList<TileLoc>();
   
@@ -21,7 +21,7 @@ class WaveCollapseMap extends Map {
     
     priorTileProbabilities = new double[wangTiles.size()];
     for (int i = 0; i < wangTiles.size(); i++){
-      priorTileProbabilities[i] = Math.log(max(1, wangTiles.get(i).likelyhood )/ 255.0);
+      priorTileProbabilities[i] = (double)Math.log(max(1, wangTiles.get(i).likelyhood )/ 255.0);
       println(wangTiles.get(i).likelyhood);
     }
 
@@ -30,15 +30,17 @@ class WaveCollapseMap extends Map {
         tileDistributions[x][y] = new TileProbabilityDistribution(priorTileProbabilities.clone());
 //        tileDistributions[x][y] = new TileProbabilityDistribution(1d);
         tileDistributions[x][y].normalize();
-        screenValid[x][y]=true;
+        //screenValid[x][y]=true;
       }
     }
     
     spheres = new HashMap<Tile, TileProbabilitySphere>();
     print("we have "); print(wangTiles.size()); println(" Wang tiles."); 
     print("initializing spheres ");
-    for (Tile tile : wangTiles){
-      spheres.put(tile, new TileProbabilitySphere(tile, wangTiles)); 
+    ArrayList<TileProbabilitySphere> allSpheres = new ArrayList<TileProbabilitySphere>(getSpheres());
+    for (int i =0; i< wangTiles.size(); i++){
+      //spheres.put(tile, new TileProbabilitySphere(tile)); 
+      spheres.put(tile.get(i), allSpheres.get(i));
     }
     println(" done.");
     
@@ -98,7 +100,7 @@ class WaveCollapseMap extends Map {
 //    printSums();
     int numIterations = 1;
     if (timeSinceMapBuild>0) {
-      numIterations = 3;
+      numIterations = 12;
     }
     println(timeSinceMapBuild);
     // if the simulation has been running a long time,
@@ -199,6 +201,9 @@ class WaveCollapseMap extends Map {
     for (int x=0; x<mapWidth; x++) {
       for (int y=0; y<mapWidth; y++) {
         if (!screenValid[x][y]){
+          fill(0);
+          noStroke();
+          rect(x*tileWidth, y*tileWidth, tileWidth, tileWidth);
           if (tiles[x][y] != null) {
             tint(255,(int)255);
             tiles[x][y].draw(x, y);
@@ -208,8 +213,9 @@ class WaveCollapseMap extends Map {
             
             for (Tile tile : wangTiles){        
               double p = tileDistributions[x][y].getProbability(tile);
-//              if(p > 1.0 / wangTiles.size()){
+//              if(p > 1.0 / wangTilkes.size()){
                 tint(255,(int)(255*p));
+
                 tile.draw(x, y);
                 
 //              }
@@ -224,4 +230,3 @@ class WaveCollapseMap extends Map {
   
 
 }
-

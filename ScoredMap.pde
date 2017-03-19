@@ -192,4 +192,3 @@ class ScoredMap extends Map {
     }
   }
 }
-
