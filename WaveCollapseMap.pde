@@ -3,7 +3,7 @@ class WaveCollapseMap extends Map {
   HashMap<Tile, TileProbabilitySphere> spheres;
   boolean[][] screenValid;
   double[] priorTileProbabilities;
-  int numInitialPlacements = 90;
+  int numInitialPlacements = 190;
   Random rand = new Random();
   ArrayList<TileLoc> tileLocs = new ArrayList<TileLoc>();
   
@@ -30,7 +30,7 @@ class WaveCollapseMap extends Map {
         tileDistributions[x][y] = new TileProbabilityDistribution(priorTileProbabilities.clone());
 //        tileDistributions[x][y] = new TileProbabilityDistribution(1d);
         tileDistributions[x][y].normalize();
-        //screenValid[x][y]=true;
+        screenValid[x][y]=true;
       }
     }
     
@@ -39,8 +39,8 @@ class WaveCollapseMap extends Map {
     print("initializing spheres ");
     ArrayList<TileProbabilitySphere> allSpheres = new ArrayList<TileProbabilitySphere>(getSpheres());
     for (int i =0; i< wangTiles.size(); i++){
-      //spheres.put(tile, new TileProbabilitySphere(tile)); 
-      spheres.put(tile.get(i), allSpheres.get(i));
+      //spheres.put(wangTiles.get(i), new TileProbabilitySphere(wangTiles.get(i))); 
+      spheres.put(wangTiles.get(i), allSpheres.get(i));
     }
     println(" done.");
     
@@ -100,7 +100,7 @@ class WaveCollapseMap extends Map {
 //    printSums();
     int numIterations = 1;
     if (timeSinceMapBuild>0) {
-      numIterations = 12;
+      numIterations = 20;
     }
     println(timeSinceMapBuild);
     // if the simulation has been running a long time,
@@ -133,7 +133,7 @@ class WaveCollapseMap extends Map {
       for (int y=max(loc.y - sphereWidth/2-1,0); y < min(loc.y  + sphereWidth/2+1, mapWidth); y++) {
         editing.x = x - loc.x + (sphereWidth-1);
         editing.y = y - loc.y + (sphereWidth-1);
-        tileDistributions[x][y].multiply(sphere.getDistributionAt(editing));
+        tileDistributions[x][y].add(sphere.getDistributionAt(editing));
         tileDistributions[x][y].normalize();
         screenValid[x][y] = false;
       }

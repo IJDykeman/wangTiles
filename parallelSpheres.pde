@@ -8,29 +8,31 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 
-ArrayList<TileProbabilitySphere> getSpheres(){
-ExecutorService EXEC = Executors.newCachedThreadPool();
-List<Callable<TileProbabilitySphere>> tasks = new ArrayList<Callable<TileProbabilitySphere>>();
-//for (Tile tile: wangTiles) {
-
-for (int i = 0; i< wangTiles.size(); i++){
+ArrayList<TileProbabilitySphere> getSpheres() {
+  ExecutorService EXEC = Executors.newFixedThreadPool(8);
+  List<Callable<TileProbabilitySphere>> tasks = new ArrayList<Callable<TileProbabilitySphere>>();
+  for (int i = 0; i< wangTiles.size(); i++) {
     final Tile tile = wangTiles.get(i);
     Callable<TileProbabilitySphere> c = new Callable<TileProbabilitySphere>() {
-        @Override
+      @Override
         public TileProbabilitySphere call() throws Exception {
-            return new TileProbabilitySphere(tile);
-        }
+        return new TileProbabilitySphere(tile);
+      }
     };
     tasks.add(c);
-}
-try{
-  List<Future<TileProbabilitySphere>> results = EXEC.invokeAll(tasks);
-  ArrayList<TileProbabilitySphere> toReturn = new ArrayList<TileProbabilitySphere>(); //<>//
-  for (Future<TileProbabilitySphere> fut : results){
-    toReturn.add(fut.get());
   }
-}
-catch(Exception e){}
-finally{}
-return null;
+  try {
+    List<Future<TileProbabilitySphere>> results = EXEC.invokeAll(tasks);
+    ArrayList<TileProbabilitySphere> toReturn = new ArrayList<TileProbabilitySphere>();
+    for (Future<TileProbabilitySphere> fut : results) {
+      toReturn.add(fut.get());
+    }
+    return toReturn;
+  }
+  catch(Exception e) {
+    println("ERROR");
+  }
+  finally {
+  }
+  return null;
 }

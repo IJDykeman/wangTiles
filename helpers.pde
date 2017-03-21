@@ -5,15 +5,20 @@ ArrayList<Tile> parseTilesIntoSet(){
   if (tilesImage == null) {
     return result;
   }
+  
   color black = color(0,0,0);
   for (int x=0; x< (tilesImage.width-3)/4+1; x++) {
     for (int y=0; y< (tilesImage.height-3)/4+1; y++) {
+      boolean all_rotations = tilesImage.get(x*4+3,y*4)==black;
       PImage image = tilesImage.get(x*4, y*4, 3, 3);
       int likelyhood = (int)pow(255-(int)red(tilesImage.get(x*4, y*4+3)),1);
+      if (all_rotations){
+        likelyhood /= 4;
+      }
       if (!( new Tile(image,likelyhood).isAllWhite()) && ((int)tilesImage.get(x*4+1, y*4+3) != color(255,0,0)))
       {
         result.add(new Tile(image, likelyhood));
-        if(tilesImage.get(x*4+3,y*4)==black){
+        if(all_rotations){
           Tile rotation1 = new Tile( get90DegClockwiseRotation(image), likelyhood);
           Tile rotation2 = new Tile( get90DegClockwiseRotation(rotation1.image), likelyhood);
           Tile rotation3 = new Tile( get90DegClockwiseRotation(rotation2.image), likelyhood);
