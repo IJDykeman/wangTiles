@@ -5,11 +5,13 @@ import java.util.*;
 Map map;
 boolean showLines = false;
 
-final int tileWidth = 6;
+final int tileWidth = 12;
 final int sphereWidth = 5;
-final int mapWidth = 128;
-//String FILENAME = "wangTiles_adjusted_for_wave.png";
-String FILENAME = "dungeon.png";
+final int mapWidth = 64;
+//String FILENAME = "dungeon.png";
+//String FILENAME = "wangTiles_classic.png";
+String FILENAME = "tiles.png";
+//String FILENAME = "dungeon.png";
 //String FILENAME = "wangTiles_classic.png";
 ArrayList<Tile> wangTiles;
 PImage tilesImage;
@@ -75,7 +77,8 @@ void draw() {
   if (showLines) {
     map.drawGrid();
   }
-//  save(frames.toString() + ".png");
+  //save("output/" + frames.toString() + ".png");
+  saveFrame("frame-######.png");
   frames++;
 }
 
