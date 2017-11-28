@@ -196,7 +196,7 @@ class TileProbabilitySphere extends Map{
   }
   
   TileProbabilityDistribution transitionDistribution(TileLoc from, TileLoc to){
-//      println("getting trans dist...");
+
     Tile tileFrom;
     Tile tileTo;
     double[] probabilities = new double[wangTiles.size()]; 
@@ -207,11 +207,11 @@ class TileProbabilitySphere extends Map{
         tileFrom = wangTiles.get(j);
         double valid = isValidNeighbor(tileTo, to.x, to.y, tileFrom, from.x, from.y) ? (double)1 : (double)0;
         
-        p += tileDistributions[from.x][from.y].getProbability(tileFrom) * valid;// * ((double)(1+tileTo.likelyhood) / 255.0) ;
+        p += tileDistributions[from.x][from.y].getProbability(tileFrom) * valid;
       }
       probabilities[i] = (double)Math.log(p);
     }
-//    println("got trans dist");
+
     return new TileProbabilityDistribution(probabilities);
   }
   
