@@ -18,5 +18,5 @@ def potential(a,b,di,dj):
     if dj == 0 and di == -1:
         match = (np.all(a[0, :] == b[-1, :])).astype(np.int32)
         return match * p_match + (1-match) * p_no_match
-    print "oops"
+    return 1
 
