@@ -25,3 +25,14 @@ def show_tiles(tiles):
         print
         print i
         print tiles[i]
+
+def report_on_sphere(i, spheres, tiles):
+    print "=================================="
+    print "reporting information about tile", i
+    print tiles[i]
+    for t2 in range(len(tiles)):
+        print "transition to", t2
+        print tiles[t2]
+        print spheres[i, :,:, t2]
+
+    print "=================================="
