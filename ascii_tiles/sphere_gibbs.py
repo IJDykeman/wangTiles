@@ -28,13 +28,6 @@ def spherehood(i,j):
                 hood[:,1] < SPHERE_WIDTH))
     return hood[condition]
 
-def sphere_probability(i,j):
-    p = np.ones_like(spheres[0,0,0])
-    for ni, nj in spherehood(i,j):
-        p *= spheres[world[ni, nj], i-ni, j-nj, :] * decided[ni,nj] 
-    return (p / (np.sum(p)))
-    # return np.ones_like(p) / len(tiles)
-
 
 def place(i, j, tile_index):
     decided[i,j] = 1
@@ -169,7 +162,7 @@ while np.prod(decided.shape) - np.sum(decided) > 0:
     # print "world"
     # print world
     
-    ts, ps = range(len(tiles)), probmap[i,j]#sphere_probability(i,j)
+    ts, ps = range(len(tiles)), probmap[i,j]
     # print "ps", ps
     to_place = np.random.choice(ts, 1, p=np.array(ps))[0]
     # print "placing", to_place, "at", i,j
@@ -180,7 +173,10 @@ while np.prod(decided.shape) - np.sum(decided) > 0:
     # time.sleep(.2)
     # quit()
 
-draw_world(world, tiles)
 
-# show_tiles(tiles)
+for i in range(WORLD_WIDTH):
+    for j in range(WORLD_WIDTH):
+        if len(get_all_valid(i,j)) == 0:
+            decided[i,j]=0
+draw_world(world, tiles, mask = decided)
 
