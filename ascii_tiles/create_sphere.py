@@ -29,11 +29,10 @@ def create_spheres(tiles):
 
 
         for i, j in grid_bfs(SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, SPHERE_WIDTH):
+            if i == SPHERE_WIDTH / 2 and j == SPHERE_WIDTH / 2:
+                continue
             # print "  bfs to", i,j
             for query_tile_index in range(len(tiles)):
-                if i == SPHERE_WIDTH / 2 and j == SPHERE_WIDTH / 2:
-                    continue
-                visited[i,j] = 1
                 for neighbor_i, neighbor_j in neighbors(i,j, width = SPHERE_WIDTH):
                     if visited[neighbor_i, neighbor_j] == 1:
                         # print "    looking from", i,j, "to neighbors at", neighbor_i, neighbor_j, "as tile", query_tile_index
@@ -51,6 +50,8 @@ def create_spheres(tiles):
                     spheres[central_tile_index, i,j, :] = spheres[central_tile_index, i,j, :] / np.sum(spheres[central_tile_index, i,j, :])
                 else:
                     spheres[central_tile_index, i,j, :] = 0
+            visited[i,j] = 1
+
                 # print "  ", spheres[central_tile_index, i,j, :]
 
 
