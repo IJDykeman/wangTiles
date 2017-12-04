@@ -8,6 +8,7 @@ from display import *
 from constants import *
 import random
 
+
 # np.random.seed(0)
 
 spherehood_relative_array = []
@@ -28,27 +29,40 @@ def spherehood(i,j):
                 hood[:,1] < SPHERE_WIDTH))
     return hood[condition]
 
-
-def place(i, j, tile_index):
-    decided[i,j] = 1
-    global probmap
-
-
-    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
-        *= spheres[tile_index,
-                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
-
-
+def normalize_probmap(probmap):
     s = np.sum(probmap, axis = -1)
     # s[s==0]=1
     probmap[s==0,:]=1
     s = np.sum(probmap, axis = -1)
 
     probmap /= s.reshape(WORLD_WIDTH, WORLD_WIDTH, 1)
+    return probmap
+
+def place(i, j, tile_index):
+    decided[i,j] = 1
+    global probmap
+    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
+        *= spheres[tile_index,
+                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
+                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
+
+    probmap = normalize_probmap(probmap)
     world[i,j] = tile_index
-    # quit()
+
+def unplace(i, j):
+    decided[i,j] = 0
+    global probmap
+    # print world[i,j], i, j
+    s = spheres[world[i,j],
+                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
+                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
+    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
+        /= s + np.ones_like(s) * (s==0)
+
+    probmap = normalize_probmap(probmap)
+    world[i,j] = 0
 
 
 def get_all_valid(i,j):
@@ -86,10 +100,13 @@ print "===="
 tiles = get_tiles(tile_file_content)
 # random.shuffle(tiles)
 tile_index_to_prior = np.ones(len(tiles)) / len(tiles)
-
+build_transition_matrices(tiles)
+import time
+t1 = time.time()
 
 spheres = create_spheres(tiles)
-
+print time.time() - t1, "to build tiles"
+quit()
 show_tiles(tiles)
 report_on_sphere(0, spheres, tiles)
 # quit()
@@ -147,9 +164,7 @@ report_on_probmap_location(WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1)
 # quit()
 print "=======START GENERATION=========="
 
-step=0
-while np.prod(decided.shape) - np.sum(decided) > 0:
-    step += 1
+def place_a_tile():
     entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0) * (decided == 0).reshape(WORLD_WIDTH,WORLD_WIDTH,1), axis = -1))
     entropy += (decided == 1) * np.max(entropy)
     entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
@@ -168,15 +183,45 @@ while np.prod(decided.shape) - np.sum(decided) > 0:
     # print "placing", to_place, "at", i,j
     place(i,j, to_place)
 
-    if step % 10 ==0:
-        draw_world(world, tiles, mask = decided)
-    # time.sleep(.2)
+step=0
+while np.prod(decided.shape) - np.sum(decided) > 0:
+    step += 1
+    place_a_tile()
+
+    # if step % (np.prod(world.shape) / 20) ==0:
+    #     draw_world(world, tiles, mask = decided)
+        # time.sleep(.3)
     # quit()
 
 
-for i in range(WORLD_WIDTH):
-    for j in range(WORLD_WIDTH):
-        if len(get_all_valid(i,j)) == 0:
-            decided[i,j]=0
+def remove_and_redo(k):
+    for i in range(WORLD_WIDTH):
+        for j in range(WORLD_WIDTH):
+            if len(get_all_valid(i,j)) == 0:
+                for i1 in range(i-k, i+k):
+                    for j1 in range(j-k, j+k):
+                        if i1 >= 0 and i1 < WORLD_WIDTH and j1 >=0 and j1 < WORLD_WIDTH:
+                            unplace(i1, j1)
+
+    step=0
+    while np.prod(decided.shape) - np.sum(decided) > 0:
+        step += 1
+        place_a_tile()
 draw_world(world, tiles, mask = decided)
 
+remove_and_redo(4)
+
+# # draw_world(world, tiles, mask = decided)
+
+# remove_and_redo(10)
+
+# # draw_world(world, tiles, mask = decided)
+
+# remove_and_redo(10)
+
+# # draw_world(world, tiles, mask = decided)
+
+# remove_and_redo(2)
+# remove_and_redo(1)
+# print '=' * WORLD_WIDTH * 3
+draw_world(world, tiles, mask = decided)

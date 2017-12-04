@@ -8,7 +8,7 @@ from constants import *
 # EAST = 2
 # WEST = 3
 
-def get_lines(fname):
+def get_lines(fname, v = False):
     with open(fname) as f:
         tile_file_content = f.readlines()
     # grid_height = len(tile_file_content)
@@ -17,11 +17,11 @@ def get_lines(fname):
         tile_file_content[i] = tile_file_content[i].replace("\n", "")
         tile_file_content[i] = tile_file_content[i] + " " * (grid_width - len(tile_file_content[i])) 
         tile_file_content[i] = np.array(list(tile_file_content[i]))
-        print tile_file_content[i].shape
+        if v: print tile_file_content[i].shape
     return tile_file_content
 
 
-def get_tiles(char_grid):
+def get_tiles(char_grid, v = False):
     result = []
     for i in range(char_grid.shape[0] / 4 + 1):
         for j in range(char_grid.shape[0] / 4 + 1):
@@ -30,18 +30,18 @@ def get_tiles(char_grid):
             # print data
 
             if data.shape == (4,4):
-                print data[1,-1]
+                if v: print data[1,-1]
                 tile = data[:-1,:-1]
                 if np.all([x != ' ' for x in list(tile.flatten())]):
                     if not data[1,-1]=="#":
                         if data[0,-1]=="*":
-                            print "rotated"
+                            if v: print "rotated"
                             result.append(np.rot90(tile))
                             result.append(np.rot90(np.rot90(tile)))
                             result.append(np.rot90(np.rot90(np.rot90(tile))))
                         result.append(tile)
-                        print "added"
+                        if v: print "added"
                     else:
-                        print "commented"
-                    print
+                        if v: print "commented"
+                    if v: print
     return result

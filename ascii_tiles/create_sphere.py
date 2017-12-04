@@ -3,6 +3,8 @@ from potentials import *
 from helpers import *
 from display import *
 import numpy as np
+from multiprocessing import Pool
+from numba import jit
 
 
 
@@ -15,7 +17,7 @@ def test_bfs():
     print grid
 test_bfs()
 
-
+@jit
 def get_sphere_slice(central_tile_index, tiles):
     sphere = np.zeros([SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
 
@@ -32,21 +34,12 @@ def get_sphere_slice(central_tile_index, tiles):
         if query_i == SPHERE_WIDTH / 2 and query_j == SPHERE_WIDTH / 2:
             continue
         # print "  bfs to", i,j
-        for query_tile_index in range(len(tiles)):
-            for neighbor_i, neighbor_j in neighbors(query_i,query_j, width = SPHERE_WIDTH):
-                if visited[neighbor_i, neighbor_j] == 1:
-                    # if central_tile_index == 2:
-                    #     print "  looking from", query_i,query_j, "to neighbors at", neighbor_i, neighbor_j, "as tile", query_tile_index
-                    for neighbor_tile_index in range(len(tiles)):
-                        # if central_tile_index == 2:
-                        #     print  "    neighbor =", neighbor_tile_index
-                        pot = potential(tiles[query_tile_index], tiles[neighbor_tile_index], 
-                                        neighbor_i - query_i, neighbor_j - query_j)
-                        prior = sphere[neighbor_i, neighbor_j, neighbor_tile_index]
-                        # if central_tile_index == 2:
-                        #     print  "    pot =",pot
-                        sphere[query_i,query_j, query_tile_index] += pot * prior
-        # print "  setting sphere at q=", query_i, query_j
+        for neighbor_i, neighbor_j in neighbors(query_i,query_j, width = SPHERE_WIDTH):
+            if visited[neighbor_i, neighbor_j] == 1:
+                prob_from = sphere[neighbor_i, neighbor_j, :]
+                prob_to = transition_matrix(neighbor_i - query_i, neighbor_j - query_j).dot(prob_from)
+                sphere[query_i,query_j, :] += prob_to
+
         if np.sum(sphere[query_i,query_j, :]) != 0:
             sphere[query_i,query_j, :] = sphere[query_i,query_j, :] / np.sum(sphere[query_i,query_j, :])
         else:
@@ -55,14 +48,25 @@ def get_sphere_slice(central_tile_index, tiles):
 
     return sphere
 
+transition_matrix
 
+# @jit
+def f(a):
+    central_tile_index, tiles = a
+    return get_sphere_slice(central_tile_index, tiles)
 
 def create_spheres(tiles):
-    spheres = np.zeros([len(tiles), SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
-    # print spheres.shape
-    for central_tile_index, central_tile in enumerate(tiles):
-        spheres[central_tile_index] = get_sphere_slice(central_tile_index, tiles)
 
+    p = Pool(7)
+    
+    # print spheres.shape
+
+    spheres = p.map(f, zip(range(len(tiles)), [tiles] * len(tiles)))
+    # print spheres
+    spheres = np.array(spheres)
+    # print spheres.shape
+    # quit()
     # report_on_sphere(4, spheres, tiles)
     return spheres
+
 
