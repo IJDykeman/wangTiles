@@ -39,16 +39,20 @@ def normalize_probmap(probmap):
     probmap /= s.reshape(WORLD_WIDTH, WORLD_WIDTH, 1)
     return probmap
 
+# @profile
 def get_entropy(probmap, decided):
 
     decided_deep = decided.reshape(decided.shape[0], -1, 1)
     # print probmap.shape
     # print decided.shape
-    entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0) * (decided_deep == 0).reshape(decided.shape[0],decided.shape[1],1), axis = -1))
+    entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0).astype(np.int32) * (decided_deep == 0).reshape(decided.shape[0],decided.shape[1],1), axis = -1))
     entropy += (decided == 1) * np.max(entropy)
     return entropy
 
+# @profile
 def update_entropy_around(i, j):
+    global probmap
+    global entropy
     entropy[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
                 max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
                 = get_entropy(probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
@@ -57,6 +61,7 @@ def update_entropy_around(i, j):
                                 max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)])
 
 def normalize_probmap_around(i, j):
+    global probmap
     p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
                 max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]
     s = np.sum(p, axis = -1)
@@ -230,12 +235,13 @@ def place_a_tile():
 
 # @profile
 def generate_world():
-    # place(2,2, 1)
+    place(2,2, 1)
     for _ in range(np.prod(world.shape) / 100):
-        i = random.randint(0, WORLD_WIDTH - 1)
-        j = random.randint(0, WORLD_WIDTH - 1)
+        i = random.randint(0, (WORLD_WIDTH - 1) / 10)
+        j = random.randint(0, (WORLD_WIDTH - 1) / 10)
+
         tile = random.choice(range(len(tiles)))
-        place(i,j,tile)
+        place(i * 10,j * 10,tile)
 
     # draw_world(world, tiles, mask = decided)
 
@@ -254,7 +260,7 @@ def generate_world():
         # if step % (np.prod(world.shape) / 4) ==0:
             # draw_world(world, tiles, mask = decided)
             # time.sleep(.3)
-        # quit()
+
 generate_world()
 
 # @profile

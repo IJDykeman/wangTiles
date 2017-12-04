@@ -10,8 +10,30 @@ def prCyan(prt): return ("\033[96m\033[01m{}\033[00m" .format(prt))
 def prLightGray(prt): return ("\033[97m\033[01m{}\033[00m" .format(prt))
 def prBlack(prt): return ("\033[98m\033[01m{}\033[00m" .format(prt))
 def bgBlue(prt): return ("\033[44m\033[01m{}\033[00m" .format(prt))
+def bgPink(prt): return ("\033[45m\033[01m{}\033[00m" .format(prt))
+def bgCyan(prt): return ("\033[46m\033[01m{}\033[00m" .format(prt))
+def bgTan(prt): return ("\033[47m\033[01m{}\033[00m" .format(prt))
+def bgYellow(prt): return ("\033[43m\033[01m{}\033[00m" .format(prt))
+def bgGreen(prt): return ("\033[42m\033[01m{}\033[00m" .format(prt))
+def bgRed(prt): return ("\033[41m\033[01m{}\033[00m" .format(prt))
+def bgLightGray(prt): return ("\033[40m\033[01m{}\033[00m" .format(prt))
+
+
+
 def prDarkgrey(prt): return ("\033[90m\033[01m{}\033[00m" .format(prt))
 
+replacements = {
+    '# ': prLightGray('# '),
+    '= ': bgGreen('= '),
+    '_ ': bgGreen('_ '),
+    'w ': bgBlue('  '),
+    '| ': bgLightGray('| '),
+    'L ': bgRed('  '),
+    '0 ': prCyan('  '),
+
+
+    
+}
 
 
 def draw_world(world, tiles, mask = None):
@@ -30,7 +52,10 @@ def draw_world(world, tiles, mask = None):
     toprint = []
     for i in range(len(chars)):
         toprint.append(" ".join(chars[i]))
-    print "\n".join(toprint)
+    toprint = "\n".join(toprint)
+    for k in replacements:
+        toprint = toprint.replace(k, replacements[k])
+    print toprint
     print "=" * WORLD_WIDTH * 3
 
 
