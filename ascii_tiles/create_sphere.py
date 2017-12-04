@@ -4,7 +4,7 @@ from helpers import *
 from display import *
 import numpy as np
 from multiprocessing import Pool
-from numba import jit
+# from numba import jit
 
 
 
@@ -15,9 +15,7 @@ def test_bfs():
         print item
         grid[item] = i
     print grid
-test_bfs()
 
-@jit
 def get_sphere_slice(central_tile_index, tiles):
     sphere = np.zeros([SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
 
@@ -31,8 +29,8 @@ def get_sphere_slice(central_tile_index, tiles):
     for query_i, query_j in grid_bfs(SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, SPHERE_WIDTH):
         # if central_tile_index == 2:    
         #     print query_i, query_j
-        if query_i == SPHERE_WIDTH / 2 and query_j == SPHERE_WIDTH / 2:
-            continue
+        # if query_i == SPHERE_WIDTH / 2 and query_j == SPHERE_WIDTH / 2:
+        #     continue
         # print "  bfs to", i,j
         for neighbor_i, neighbor_j in neighbors(query_i,query_j, width = SPHERE_WIDTH):
             if visited[neighbor_i, neighbor_j] == 1:
@@ -48,25 +46,14 @@ def get_sphere_slice(central_tile_index, tiles):
 
     return sphere
 
-transition_matrix
-
-# @jit
 def f(a):
     central_tile_index, tiles = a
     return get_sphere_slice(central_tile_index, tiles)
 
 def create_spheres(tiles):
-
     p = Pool(7)
-    
-    # print spheres.shape
-
     spheres = p.map(f, zip(range(len(tiles)), [tiles] * len(tiles)))
-    # print spheres
     spheres = np.array(spheres)
-    # print spheres.shape
-    # quit()
-    # report_on_sphere(4, spheres, tiles)
     return spheres
 
 

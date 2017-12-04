@@ -56,3 +56,6 @@ def get_tiles_and_probs(i,j, tiles, p):
     prob_list = [x/s for x in prob_list]
     # print prob_list
     return tile_list, prob_list
+
+def in_world(i,j):
+    return i >= 0 and i < WORLD_WIDTH and j >= 0 and j < WORLD_WIDTH 

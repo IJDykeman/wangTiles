@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import kernprof
 
 from extract_tiles import *
 from potentials import *
@@ -38,6 +39,37 @@ def normalize_probmap(probmap):
     probmap /= s.reshape(WORLD_WIDTH, WORLD_WIDTH, 1)
     return probmap
 
+def get_entropy(probmap, decided):
+
+    decided_deep = decided.reshape(decided.shape[0], -1, 1)
+    # print probmap.shape
+    # print decided.shape
+    entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0) * (decided_deep == 0).reshape(decided.shape[0],decided.shape[1],1), axis = -1))
+    entropy += (decided == 1) * np.max(entropy)
+    return entropy
+
+def update_entropy_around(i, j):
+    entropy[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
+                = get_entropy(probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)],
+                            decided[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)])
+
+def normalize_probmap_around(i, j):
+    p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]
+    s = np.sum(p, axis = -1)
+    # s[s==0]=1
+    p[s==0,:]=1
+    s = np.sum(p, axis = -1)
+
+    p /= s.reshape(s.shape[0], -1, 1)
+    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)] = p
+
+
+# @profile
 def place(i, j, tile_index):
     decided[i,j] = 1
     global probmap
@@ -47,8 +79,35 @@ def place(i, j, tile_index):
                    max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
                    max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
 
-    probmap = normalize_probmap(probmap)
+    # probmap = normalize_probmap(probmap)
+    normalize_probmap_around(i,j)
+    update_entropy_around(i, j)
+
     world[i,j] = tile_index
+    # for i1, j1 in neighbors(i,j):
+    #     if in_world(i1, j1):
+    #         surrounded = True
+    #         for i2, j2 in neighbors(i1,j1):
+    #             if in_world(i2, j2):
+    #                 if decided[i2, j2] == 0:
+    #                     surrounded = False
+    #                     break
+    #         if surrounded:
+    #             forget(i1, j1)
+
+def forget(i, j):
+    global probmap
+    s = spheres[world[i,j],
+                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
+                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
+    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
+        /= s + np.ones_like(s) * (s==0)
+
+    # probmap = normalize_probmap(probmap)
+    normalize_probmap_around(i,j)
+    update_entropy_around(i, j)
+
 
 def unplace(i, j):
     decided[i,j] = 0
@@ -62,7 +121,12 @@ def unplace(i, j):
         /= s + np.ones_like(s) * (s==0)
 
     probmap = normalize_probmap(probmap)
+
+    update_entropy_around(i, j)
+
     world[i,j] = 0
+
+
 
 
 def get_all_valid(i,j):
@@ -70,7 +134,8 @@ def get_all_valid(i,j):
     for t in range(len(tiles)):
         ismatch = True
         for ni, nj in neighbors(i,j):
-            ismatch = ismatch and match(tiles[t], tiles[world[ni,nj]], ni - i, nj - j)
+            if decided[ni, nj] == 1:
+                ismatch = ismatch and match(tiles[t], tiles[world[ni,nj]], ni - i, nj - j)
         if ismatch:
             result.append(t)
     return result
@@ -96,7 +161,7 @@ tile_file_content = get_lines("tiles.txt")
 tile_file_content = np.array(tile_file_content)
 
 
-print "===="
+# print "===="
 tiles = get_tiles(tile_file_content)
 # random.shuffle(tiles)
 tile_index_to_prior = np.ones(len(tiles)) / len(tiles)
@@ -106,20 +171,20 @@ t1 = time.time()
 
 spheres = create_spheres(tiles)
 print time.time() - t1, "to build tiles"
-quit()
-show_tiles(tiles)
-report_on_sphere(0, spheres, tiles)
+# quit()
+# show_tiles(tiles)
+# report_on_sphere(0, spheres, tiles)
 # quit()
 
 # quit()
-print "===SPHERES===="
-print spheres.shape
-print spheres[0,:,:,0]
-print spheres[0,:,:,1]
+# print "===SPHERES===="
+# print spheres.shape
+# print spheres[0,:,:,0]
+# print spheres[0,:,:,1]
 
-print "===="
-print spheres[1,:,:,0]
-print spheres[1,:,:,1]
+# print "===="
+# print spheres[1,:,:,0]
+# print spheres[1,:,:,1]
 
 # show_tiles()
 # print potential(tiles[1], tiles[1], 1,0)
@@ -131,6 +196,7 @@ print spheres[1,:,:,1]
 world = np.zeros((WORLD_WIDTH,WORLD_WIDTH)).astype(np.int32)
 probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, len(tiles))).astype(np.float32)
 decided = np.zeros((WORLD_WIDTH,WORLD_WIDTH)).astype(np.int32)
+entropy = np.ones((WORLD_WIDTH,WORLD_WIDTH)) * 10000
 
 
 all_coords = []
@@ -149,67 +215,68 @@ def report_on_probmap_location(i,j):
     print "=================================="
 
 
-# place(2,2, 1)
-for _ in range(25):
-    i = random.randint(0, WORLD_WIDTH - 1)
-    j = random.randint(0, WORLD_WIDTH - 1)
-    tile = random.choice(range(len(tiles)))
-    place(i,j,tile)
 
-draw_world(world, tiles, mask = decided)
-
-report_on_sphere(2, spheres, tiles)
-# print probmap[WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1]
-report_on_probmap_location(WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1)
-# quit()
-print "=======START GENERATION=========="
-
+# @profile
 def place_a_tile():
-    entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0) * (decided == 0).reshape(WORLD_WIDTH,WORLD_WIDTH,1), axis = -1))
-    entropy += (decided == 1) * np.max(entropy)
+
     entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
     i,j = entropy_argmin
-    # report_on_probmap_location(i,j)
 
-    # print "entropy"
-    # print entropy
-    # print "argmin", i,j
-    # print "world"
-    # print world
-    
     ts, ps = range(len(tiles)), probmap[i,j]
     # print "ps", ps
     to_place = np.random.choice(ts, 1, p=np.array(ps))[0]
     # print "placing", to_place, "at", i,j
     place(i,j, to_place)
 
-step=0
-while np.prod(decided.shape) - np.sum(decided) > 0:
-    step += 1
-    place_a_tile()
+# @profile
+def generate_world():
+    # place(2,2, 1)
+    for _ in range(np.prod(world.shape) / 100):
+        i = random.randint(0, WORLD_WIDTH - 1)
+        j = random.randint(0, WORLD_WIDTH - 1)
+        tile = random.choice(range(len(tiles)))
+        place(i,j,tile)
 
-    # if step % (np.prod(world.shape) / 20) ==0:
-    #     draw_world(world, tiles, mask = decided)
-        # time.sleep(.3)
+    # draw_world(world, tiles, mask = decided)
+
+    # report_on_sphere(2, spheres, tiles)
+    # print probmap[WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1]
+    # report_on_probmap_location(WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1)
     # quit()
+    print "=======START GENERATION=========="
 
-
-def remove_and_redo(k):
-    for i in range(WORLD_WIDTH):
-        for j in range(WORLD_WIDTH):
-            if len(get_all_valid(i,j)) == 0:
-                for i1 in range(i-k, i+k):
-                    for j1 in range(j-k, j+k):
-                        if i1 >= 0 and i1 < WORLD_WIDTH and j1 >=0 and j1 < WORLD_WIDTH:
-                            unplace(i1, j1)
 
     step=0
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
         place_a_tile()
-draw_world(world, tiles, mask = decided)
 
-remove_and_redo(4)
+        # if step % (np.prod(world.shape) / 4) ==0:
+            # draw_world(world, tiles, mask = decided)
+            # time.sleep(.3)
+        # quit()
+generate_world()
+
+# @profile
+def remove_and_redo(k):
+    for i in range(WORLD_WIDTH):
+        for j in range(WORLD_WIDTH):
+                if decided[i, j] == 1:
+                    if len(get_all_valid(i,j)) == 0:
+                        for i1 in range(i-k, i+k):
+                            for j1 in range(j-k, j+k):
+                                if in_world(i1, j1):
+                                        unplace(i1, j1)
+
+    while np.prod(decided.shape) - np.sum(decided) > 0:
+        place_a_tile()
+
+# draw_world(world, tiles, mask = decided)
+
+
+# remove_and_redo(4)
+# remove_and_redo(10)
+
 
 # # draw_world(world, tiles, mask = decided)
 
