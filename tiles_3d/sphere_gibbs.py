@@ -42,7 +42,8 @@ def get_entropy(probmap, decided):
     # print decided.shape
     entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0).astype(np.int32) * (decided_deep == 0)\
             .reshape(decided.shape[0],decided.shape[1],decided.shape[2],1), axis = -1))
-    entropy += (decided == 1) * np.max(entropy)
+
+    entropy += (decided == 1) * 2#np.max(entropy)
     return entropy
 
 # @profile
@@ -137,11 +138,8 @@ def unplace(i, j):
     probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
             max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
         /= s + np.ones_like(s) * (s==0)
-
     probmap = normalize_probmap(probmap)
-
     update_entropy_around(i, j)
-
     world[i,j] = 0
 
 
@@ -176,9 +174,6 @@ def logp(world):
     print logp
 
 
-
-
-
 tile_file_content = get_lines("tiles.txt")
 tile_file_content = np.array(tile_file_content)
 
@@ -195,15 +190,17 @@ t1 = time.time()
 
 spheres = create_spheres(tiles)
 print time.time() - t1, "to build tiles"
-
+print tiles
+print
 for tile in tiles:
     print tile
-print potential(tiles[0], tiles[1], 1,0,0)
-print potential(tiles[0], tiles[1], 0,1,0)
-print potential(tiles[0], tiles[1], 0,0,1)
-print potential(tiles[0], tiles[1], -1,0,0)
-print potential(tiles[0], tiles[1], 0,-1,0)
-print potential(tiles[0], tiles[1], 0,0,-1)
+print
+# print potential(tiles[0], tiles[1], 1,0,0)
+# print potential(tiles[0], tiles[1], 0,1,0)
+# print potential(tiles[0], tiles[1], 0,0,1)
+# print potential(tiles[0], tiles[1], -1,0,0)
+# print potential(tiles[0], tiles[1], 0,-1,0)
+# print potential(tiles[0], tiles[1], 0,0,-1)
 # report_on_sphere(0, spheres, tiles)
 # report_on_sphere(1, spheres, tiles)
 # quit()
@@ -281,11 +278,19 @@ def generate_world():
     place(1,1,1,1)
     print "placing first tile"
     state_report()
+    # quit()
+
     print "placing some tiles..."
-    for _ in range(1):
+    place_a_tile()
+    state_report()
+    print "placing some tiles..."
+    place_a_tile()
+    state_report()
+    print "placing some tiles..."
+    for _ in range(3):
         place_a_tile()
     state_report()
-    quit()
+    # quit()
     step=0
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
@@ -302,7 +307,7 @@ def generate_world():
 
 generate_world()
 print world
-print world[0]
+# print world[0]
 # @profile
 # def remove_and_redo(k):
 #     for i in range(WORLD_WIDTH):

@@ -32,7 +32,6 @@ def get_tiles(char_grid, v = False):
             if data.shape == (4,12):
                 if v: print data[1,-1]
                 tile = np.array([data[:-1,:3], data[:-1,4:7], data[:-1,8:11]])
-                print tile
                 if np.all([x != ' ' for x in list(tile.flatten())]):
                     if not data[1,-1]=="#":
                         # if data[0,-1]=="*":
@@ -40,7 +39,7 @@ def get_tiles(char_grid, v = False):
                         #     result.append(np.rot90(tile))
                         #     result.append(np.rot90(np.rot90(tile)))
                         #     result.append(np.rot90(np.rot90(np.rot90(tile))))
-                        result.append(tile.transpose(1,2,0))
+                        result.append(tile.transpose(2,1,0))
                         if v: print "added"
                     else:
                         if v: print "commented"
