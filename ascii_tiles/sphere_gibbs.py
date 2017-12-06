@@ -146,9 +146,13 @@ def get_all_valid(i,j):
     return result
 
 
-            # else:
-            #     world[i,j] = random.choice(tiles)
-
+def is_valid(i,j):
+    for ni, nj in neighbors(i,j):
+        if decided[ni, nj] == 1:
+            ismatch = match(tiles[world[i,j]], tiles[world[ni,nj]], ni - i, nj - j)
+            if not ismatch:
+                return False
+    return True
 
 
 def logp(world):
@@ -162,7 +166,7 @@ def logp(world):
 
 
 
-tile_file_content = get_lines("tiles.txt")
+tile_file_content = get_lines("tiles2.txt")
 tile_file_content = np.array(tile_file_content)
 
 
@@ -176,27 +180,6 @@ t1 = time.time()
 
 spheres = create_spheres(tiles)
 print time.time() - t1, "to build tiles"
-# quit()
-# show_tiles(tiles)
-# report_on_sphere(0, spheres, tiles)
-# quit()
-
-# quit()
-# print "===SPHERES===="
-# print spheres.shape
-# print spheres[0,:,:,0]
-# print spheres[0,:,:,1]
-
-# print "===="
-# print spheres[1,:,:,0]
-# print spheres[1,:,:,1]
-
-# show_tiles()
-# print potential(tiles[1], tiles[1], 1,0)
-# print potential(tiles[1], tiles[1], 0,1)
-# print potential(tiles[0], tiles[1], 1,0)
-# print potential(tiles[0], tiles[1], 0,1)
-# quit()
 
 world = np.zeros((WORLD_WIDTH,WORLD_WIDTH)).astype(np.int32)
 probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, len(tiles))).astype(np.float32)
@@ -235,13 +218,12 @@ def place_a_tile():
 
 # @profile
 def generate_world():
-    place(2,2, 1)
-    for _ in range(np.prod(world.shape) / 100):
-        i = random.randint(0, (WORLD_WIDTH - 1) / 10)
-        j = random.randint(0, (WORLD_WIDTH - 1) / 10)
-
-        tile = random.choice(range(len(tiles)))
-        place(i * 10,j * 10,tile)
+    # place(2,2, 1)
+    for _ in range(100):
+       i = random.randint(0, (WORLD_WIDTH - 1) / 10)
+       j = random.randint(0, (WORLD_WIDTH - 1) / 10)
+       tile = random.choice(range(len(tiles)))
+       place(i * 10,j * 10,tile)
 
     # draw_world(world, tiles, mask = decided)
 
@@ -274,6 +256,7 @@ def remove_and_redo(k):
                                 if in_world(i1, j1):
                                         unplace(i1, j1)
 
+
     while np.prod(decided.shape) - np.sum(decided) > 0:
         place_a_tile()
 
@@ -298,3 +281,15 @@ def remove_and_redo(k):
 # remove_and_redo(1)
 # print '=' * WORLD_WIDTH * 3
 draw_world(world, tiles, mask = decided)
+
+# k=1
+# for i in range(WORLD_WIDTH):
+#     for j in range(WORLD_WIDTH):
+#             if decided[i, j] == 1:
+#                 if is_valid(i, j) == False:
+#                     print i,j
+
+#                     for i1 in range(i-k, i+k):
+#                         for j1 in range(j-k, j+k):
+#                             if in_world(i1, j1):
+#                                     unplace(i1, j1)
