@@ -31,16 +31,25 @@ def get_tiles(char_grid, v = False):
 
             if data.shape == (4,12):
                 if v: print data[1,-1]
-                tile = np.array([data[:-1,:3], data[:-1,4:7], data[:-1,8:11]])
-                if np.all([x != ' ' for x in list(tile.flatten())]):
+                tiles = [np.array([data[:-1,:3], data[:-1,4:7], data[:-1,8:11]]).transpose(2,0,1)]
+                if np.all([x != ' ' for x in list(tiles[0].flatten())]):
                     if not data[1,-1]=="#":
-                        # if data[0,-1]=="*":
-                        #     if v: print "rotated"
-                        #     result.append(np.rot90(tile))
-                        #     result.append(np.rot90(np.rot90(tile)))
-                        #     result.append(np.rot90(np.rot90(np.rot90(tile))))
-                        result.append(tile.transpose(2,1,0))
-                        if v: print "added"
+                        if data[2,-1]=="f" or data[2,-1]=="F" or data[2,-1]=="m" or data[2,-1]=="M":
+                            tile_flipped = tiles[0][:,::-1,:]
+                            tiles.append(tile_flipped)
+                        if data[0,-1]=="*":
+                            if v: print "rotated"
+                            tiles_old = tiles[:]
+                            for tile in tiles_old:
+                                axes = (0,2)
+                                tiles.append(np.rot90(tile, axes=axes))
+                                tiles.append(np.rot90(np.rot90(tile, axes=axes), axes=axes))
+                                tiles.append(np.rot90(np.rot90(np.rot90(tile, axes=axes), axes=axes), axes=axes))
+                        try:
+                            for i in range(int(data[3,0])):
+                                result.extend(tiles)
+                        except:
+                            result.extend(tiles)
                     else:
                         if v: print "commented"
                     if v: print

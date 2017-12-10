@@ -69,7 +69,6 @@ def get_tiles_and_probs(i, j, l, tiles, p):
     return tile_list, prob_list
 
 def in_world(i, j, l):
-    assert 1 == 0
-    return i >= 0 and i < WORLD_WIDTH and j >= 0 and j < WORLD_WIDTH 
+    return i >= 0 and i < WORLD_WIDTH and j >= 0 and j < WORLD_WIDTH and l >= 0 and l < WORLD_WIDTH 
 
 

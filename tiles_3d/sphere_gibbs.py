@@ -89,11 +89,12 @@ def place(i, j, l, tile_index):
     #                max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
     #                max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)].shape
     # print spheres.shape
+    sphere = spheres[tile_index]#.transpose(2,1,0,3)
 
     probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
             max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
             max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
-        *= spheres[tile_index,
+        *= sphere[
                    max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
                    max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
                    max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
@@ -103,29 +104,29 @@ def place(i, j, l, tile_index):
     update_entropy_around(i, j, l)
 
     world[i,j, l] = tile_index
-    # for i1, j1 in neighbors(i,j):
-    #     if in_world(i1, j1):
-    #         surrounded = True
-    #         for i2, j2 in neighbors(i1,j1):
-    #             if in_world(i2, j2):
-    #                 if decided[i2, j2] == 0:
-    #                     surrounded = False
-    #                     break
-    #         if surrounded:
-    #             forget(i1, j1)
+    for i1, j1, l1 in neighbors(i,j,l):
+        if in_world(i1, j1, l1):
+            surrounded = True
+            for i2, j2, l2 in neighbors(i1,j1, l1):
+                if in_world(i2, j2, l2):
+                    if decided[i2, j2, l2] == 0:
+                        surrounded = False
+                        break
+            if surrounded:
+                forget(i1, j1, l1)
 
-def forget(i, j):
+def forget(i, j, l):
     global probmap
-    s = spheres[world[i,j],
+    s = spheres[world[i,j, l],
                    max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
+                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
+                   max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
     probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
+            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
+            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
         /= s + np.ones_like(s) * (s==0)
-
-    # probmap = normalize_probmap(probmap)
-    normalize_probmap_around(i,j)
-    update_entropy_around(i, j)
+    normalize_probmap_around(i,j,l)
+    update_entropy_around(i, j,l)
 
 
 def unplace(i, j):
@@ -157,10 +158,10 @@ def get_all_valid(i,j,l):
     return result
 
 
-def is_valid(i,j):
-    for ni, nj in neighbors(i,j):
-        if decided[ni, nj] == 1:
-            ismatch = match(tiles[world[i,j]], tiles[world[ni,nj]], ni - i, nj - j)
+def is_valid(i,j,l):
+    for ni, nj, nl in neighbors(i,j,l):
+        if decided[ni, nj, nl] == 1:
+            ismatch = match(tiles[world[i,j,l]], tiles[world[ni,nj,nl]], ni - i, nj - j, nl - l)
             if not ismatch:
                 return False
     return True
@@ -174,7 +175,7 @@ def logp(world):
     print logp
 
 
-tile_file_content = get_lines("tiles.txt")
+tile_file_content = get_lines("tiles4.txt")
 tile_file_content = np.array(tile_file_content)
 
 
@@ -195,14 +196,24 @@ print
 for tile in tiles:
     print tile
 print
-# print potential(tiles[0], tiles[1], 1,0,0)
-# print potential(tiles[0], tiles[1], 0,1,0)
-# print potential(tiles[0], tiles[1], 0,0,1)
-# print potential(tiles[0], tiles[1], -1,0,0)
-# print potential(tiles[0], tiles[1], 0,-1,0)
-# print potential(tiles[0], tiles[1], 0,0,-1)
-# report_on_sphere(0, spheres, tiles)
-# report_on_sphere(1, spheres, tiles)
+
+report_on_sphere(0, spheres, tiles)
+report_on_sphere(1, spheres, tiles)
+print tiles[1]
+print tiles[1][:,:,0]
+print potential(tiles[0], tiles[1], 1,0,0)
+print potential(tiles[0], tiles[1], 0,1,0)
+print potential(tiles[0], tiles[1], 0,0,1)
+print potential(tiles[0], tiles[1], -1,0,0)
+print potential(tiles[0], tiles[1], 0,-1,0)
+print potential(tiles[0], tiles[1], 0,0,-1)
+# print
+# print potential(tiles[1], tiles[1], -1,0,0)
+# print potential(tiles[1], tiles[1], 0,-1,0)
+# print potential(tiles[1], tiles[1], 0,0,-1)
+# print potential(tiles[1], tiles[1], 1,0,0)
+# print potential(tiles[1], tiles[1], 0,1,0)
+# print potential(tiles[1], tiles[1], 0,0,1)
 # quit()
 
 world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
@@ -230,14 +241,13 @@ def report_on_probmap_location(i,j):
 
 # @profile
 def place_a_tile():
-    print np.argmin(entropy)
     entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
     i,j,l= entropy_argmin
 
     ts, ps = range(len(tiles)), probmap[i,j,l]
     # print "ps", ps
     to_place = np.random.choice(ts, 1, p=np.array(ps))[0]
-    print "placing", to_place, "at", i,j,l
+    # print "placing", to_place, "at", i,j,l
     # l = random.randint(0, WORLD_WIDTH - 1)
     place(i,j,l, to_place)
 
@@ -265,6 +275,7 @@ def generate_world():
         print entropy[:,:,2]
         print "probs", probmap.shape
         print probmap[:,:,:,0]
+        print
         print probmap[:,:,:,1]
         print "decided", decided.shape
         print decided[:,:,0]
@@ -275,22 +286,23 @@ def generate_world():
             print world[:,:,slicenum]
     print "=======START GENERATION=========="
     state_report()
-    place(1,1,1,1)
+    place(1,1,1,3)
     print "placing first tile"
-    state_report()
+    # state_report()
     # quit()
 
-    print "placing some tiles..."
-    place_a_tile()
-    state_report()
-    print "placing some tiles..."
-    place_a_tile()
-    state_report()
-    print "placing some tiles..."
-    for _ in range(3):
-        place_a_tile()
-    state_report()
-    # quit()
+    # print "placing some tiles..."
+    # place_a_tile()
+    # state_report()
+    # print "placing some tiles..."
+    # place_a_tile()
+    # state_report()
+    # print "placing some tiles..."
+    # for _ in range(3):
+    #     place_a_tile()
+    # state_report()
+    
+    # return
     step=0
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
@@ -304,9 +316,30 @@ def generate_world():
         # if step % (np.prod(world.shape) / 4) ==0:
             # draw_world(world, tiles, mask = decided)
             # time.sleep(.3)
-
+    state_report()
 generate_world()
 print world
+
+import minecraft
+
+
+
+
+worldchars = np.ones([WORLD_WIDTH*3]*3).astype(np.int32)
+stride = 3
+for i in range(WORLD_WIDTH):
+    for j in range(WORLD_WIDTH):
+        for l in range(WORLD_WIDTH):
+            worldchars[i*stride:i*stride+3,j*stride:j*stride+3,l*stride:l*stride+3] \
+                 = np.array(map(ord, list(tiles[world[i,j,l]].flatten()))).reshape([3]*3)
+
+
+solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('#'))))
+solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('@'))))
+# solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('.'))))
+# solids += zip(*map(lambda x: list(x), np.where(worldchars == ord(','))))
+solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)
+minecraft.main(solid = solids)
 # print world[0]
 # @profile
 # def remove_and_redo(k):
