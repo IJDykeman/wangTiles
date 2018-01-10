@@ -159,8 +159,10 @@ class Model(object):
         """ Initialize the world by placing all the blocks.
 
         """
+        print "adding blocks..."
         for x,y,z,t in solid:
             self.add_block((x, y, z), STONE if t == 1 else BRICK, immediate=False)
+        print "done"
 
 
     def hit_test(self, position, vector, max_distance=8):
@@ -541,12 +543,16 @@ class Window(pyglet.window.Window):
             The change in time since the last call.
 
         """
+        print "processing queue"
         self.model.process_queue()
+        print "done"
         sector = sectorize(self.position)
         if sector != self.sector:
             self.model.change_sectors(self.sector, sector)
             if self.sector is None:
+                print "processing sectors"
                 self.model.process_entire_queue()
+                print "done"
             self.sector = sector
         m = 8
         dt = min(dt, 0.2)

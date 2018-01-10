@@ -2,7 +2,7 @@ import numpy as np
 import time
 import kernprof
 
-from extract_tiles import *
+from extract_tiles_vox import *
 from potentials import *
 from create_sphere import *
 from display import *
@@ -175,12 +175,11 @@ def logp(world):
     print logp
 
 
-tile_file_content = get_lines("tiles4.txt")
-tile_file_content = np.array(tile_file_content)
+
 
 
 # print "===="
-tiles = get_tiles(tile_file_content)
+tiles = get_tiles()
 # random.shuffle(tiles)
 
 
@@ -191,22 +190,22 @@ t1 = time.time()
 
 spheres = create_spheres(tiles)
 print time.time() - t1, "to build tiles"
-print tiles
-print
-for tile in tiles:
-    print tile
+# print tiles
+# print
+# for tile in tiles:
+#     print tile
 print
 
-report_on_sphere(0, spheres, tiles)
-report_on_sphere(1, spheres, tiles)
-print tiles[1]
-print tiles[1][:,:,0]
-print potential(tiles[0], tiles[1], 1,0,0)
-print potential(tiles[0], tiles[1], 0,1,0)
-print potential(tiles[0], tiles[1], 0,0,1)
-print potential(tiles[0], tiles[1], -1,0,0)
-print potential(tiles[0], tiles[1], 0,-1,0)
-print potential(tiles[0], tiles[1], 0,0,-1)
+# report_on_sphere(0, spheres, tiles)
+# report_on_sphere(1, spheres, tiles)
+# print tiles[1]
+# print tiles[1][:,:,0]
+# print potential(tiles[0], tiles[1], 1,0,0)
+# print potential(tiles[0], tiles[1], 0,1,0)
+# print potential(tiles[0], tiles[1], 0,0,1)
+# print potential(tiles[0], tiles[1], -1,0,0)
+# print potential(tiles[0], tiles[1], 0,-1,0)
+# print potential(tiles[0], tiles[1], 0,0,-1)
 # print
 # print potential(tiles[1], tiles[1], -1,0,0)
 # print potential(tiles[1], tiles[1], 0,-1,0)
@@ -285,8 +284,8 @@ def generate_world():
         for slicenum in range(world.shape[-1]):
             print world[:,:,slicenum]
     print "=======START GENERATION=========="
-    state_report()
-    place(1,1,1,3)
+    # state_report()
+    place(1,1,1,0)
     print "placing first tile"
     # state_report()
     # quit()
@@ -316,8 +315,10 @@ def generate_world():
         # if step % (np.prod(world.shape) / 4) ==0:
             # draw_world(world, tiles, mask = decided)
             # time.sleep(.3)
-    state_report()
+    # state_report()
+    print "generation complete."
 generate_world()
+
 print world
 
 import minecraft
@@ -325,17 +326,18 @@ import minecraft
 
 
 
-worldchars = np.ones([WORLD_WIDTH*3]*3).astype(np.int32)
-stride = 3
+worldchars = np.ones([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
+stride = TILE_WIDTH
 for i in range(WORLD_WIDTH):
     for j in range(WORLD_WIDTH):
         for l in range(WORLD_WIDTH):
-            worldchars[i*stride:i*stride+3,j*stride:j*stride+3,l*stride:l*stride+3] \
-                 = np.array(map(ord, list(tiles[world[i,j,l]].flatten()))).reshape([3]*3)
+            worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
+                 = np.array(map(ord, list(tiles[world[i,j,l]].flatten()))).reshape([TILE_WIDTH]*3)
 
 
 solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('#'))))
 solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('@'))))
+solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('1'))))
 # solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('.'))))
 # solids += zip(*map(lambda x: list(x), np.where(worldchars == ord(','))))
 solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)

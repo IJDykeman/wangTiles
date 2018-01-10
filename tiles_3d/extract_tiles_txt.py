@@ -21,7 +21,9 @@ def get_lines(fname, v = False):
     return tile_file_content
 
 
-def get_tiles(char_grid, v = False):
+def get_tiles(v = False):
+    tile_file_content = get_lines("tiles7.txt")
+    char_grid = np.array(tile_file_content)
     result = []
     for i in range(char_grid.shape[0] / 4 + 1):
         for j in range(char_grid.shape[1] / 12 + 1):
