@@ -40,7 +40,7 @@ def draw_world(world, tiles, mask = None):
     # print "=" * WORLD_WIDTH * 3
     if mask is None:
         mask = np.ones_like(world)
-    stride = 2
+    stride = 3
     chars = np.array([[" "] * stride * (world.shape[1] + 2)] * stride * (world.shape[0] + 2))
 
     for i in range(world.shape[0]):

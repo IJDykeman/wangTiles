@@ -74,7 +74,7 @@ def normalize_probmap_around(i, j):
                 max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)] = p
 
 
-# @profile
+@profile
 def place(i, j, tile_index):
     decided[i,j] = 1
     global probmap
@@ -113,7 +113,7 @@ def forget(i, j):
     normalize_probmap_around(i,j)
     update_entropy_around(i, j)
 
-
+@profile
 def unplace(i, j):
     decided[i,j] = 0
     global probmap
@@ -125,8 +125,7 @@ def unplace(i, j):
             max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)]\
         /= s + np.ones_like(s) * (s==0)
 
-    probmap = normalize_probmap(probmap)
-
+    normalize_probmap_around(i,j)
     update_entropy_around(i, j)
 
     world[i,j] = 0
@@ -166,7 +165,7 @@ def logp(world):
 
 
 
-tile_file_content = get_lines("tiles2.txt")
+tile_file_content = get_lines("tiles3.txt")
 tile_file_content = np.array(tile_file_content)
 
 
@@ -219,7 +218,7 @@ def place_a_tile():
 # @profile
 def generate_world():
     # place(2,2, 1)
-    for _ in range(100):
+    for _ in range(1):
        i = random.randint(0, (WORLD_WIDTH - 1) / 10)
        j = random.randint(0, (WORLD_WIDTH - 1) / 10)
        tile = random.choice(range(len(tiles)))
@@ -245,28 +244,33 @@ def generate_world():
 
 generate_world()
 
-# @profile
+@profile
 def remove_and_redo(k):
+    already_removed = set({})
     for i in range(WORLD_WIDTH):
         for j in range(WORLD_WIDTH):
                 if decided[i, j] == 1:
-                    if len(get_all_valid(i,j)) == 0:
+                    if is_valid(i,j):
                         for i1 in range(i-k, i+k):
                             for j1 in range(j-k, j+k):
-                                if in_world(i1, j1):
-                                        unplace(i1, j1)
-
+                                if not (i1, j1) in already_removed:
+                                    if in_world(i1, j1):
+                                            unplace(i1, j1)
+                                            already_removed.add((i1,j1))
 
     while np.prod(decided.shape) - np.sum(decided) > 0:
         place_a_tile()
 
-# draw_world(world, tiles, mask = decided)
+draw_world(world, tiles, mask = decided)
 
+@profile
+def fix_world():
+    remove_and_redo(4)
+    remove_and_redo(5)
+    
+    remove_and_redo(20)
 
-# remove_and_redo(4)
-# remove_and_redo(10)
-
-
+fix_world()
 # # draw_world(world, tiles, mask = decided)
 
 # remove_and_redo(10)

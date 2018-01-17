@@ -34,12 +34,19 @@ def get_tiles(char_grid, v = False):
                 tile = data[:-1,:-1]
                 if np.all([x != ' ' for x in list(tile.flatten())]):
                     if not data[1,-1]=="#":
-                        if data[0,-1]=="*":
-                            if v: print "rotated"
-                            result.append(np.rot90(tile))
-                            result.append(np.rot90(np.rot90(tile)))
-                            result.append(np.rot90(np.rot90(np.rot90(tile))))
-                        result.append(tile)
+                        num_copies = 1
+                        try:
+                            num_copies = int("".join(list(data[-1,:])).strip())
+                        except:
+                            pass
+                        for _ in range(num_copies):
+                            if data[0,-1]=="*":
+                                if v: print "rotated"
+                                result.append(np.rot90(tile))
+                                result.append(np.rot90(np.rot90(tile)))
+                                result.append(np.rot90(np.rot90(np.rot90(tile))))
+
+                            result.append(tile)
                         if v: print "added"
                     else:
                         if v: print "commented"
