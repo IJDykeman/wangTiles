@@ -1,13 +1,11 @@
 import numpy as np
 import time
-import kernprof
 
 from extract_tiles_vox import *
 from potentials import *
 from create_sphere import *
 from display import *
 from constants import *
-import random
 
 
 # np.random.seed(0)
@@ -327,7 +325,7 @@ import minecraft
 
 
 worldchars = np.ones([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
-stride = TILE_WIDTH
+stride = TILE_WIDTH-1
 for i in range(WORLD_WIDTH):
     for j in range(WORLD_WIDTH):
         for l in range(WORLD_WIDTH):
@@ -340,7 +338,9 @@ solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('@'))))
 solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('1'))))
 # solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('.'))))
 # solids += zip(*map(lambda x: list(x), np.where(worldchars == ord(','))))
-solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)
+# solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)
+solids = map(lambda x: ((x[0], x[1], x[2] , 1)), solids)
+
 minecraft.main(solid = solids)
 # print world[0]
 # @profile
