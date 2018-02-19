@@ -172,7 +172,7 @@ def logp(world):
 
 
 
-tile_file_content = get_lines("biasedTowers.txt")
+tile_file_content = get_lines(TILESET_FILE)
 tile_file_content = np.array(tile_file_content)
 
 
@@ -215,7 +215,7 @@ def report_on_probmap_location(i,j):
 # @profile
 def place_a_tile():
 
-    entropy_argmin = np.unravel_index(np.argmin(decided + .00000001 * np.arange(WORLD_WIDTH).T) , entropy.shape)
+    entropy_argmin = np.unravel_index(np.argmin(decided) , entropy.shape)
     i,j = entropy_argmin
 
     ts, ps = range(len(tiles)), probmap[i,j]
@@ -279,7 +279,7 @@ def fix_world():
     remove_and_redo(5)    
     # remove_and_redo(20)
 
-fix_world()
+# fix_world()
 
 # def remove_and_redo(k):
 #     for i in range(WORLD_WIDTH):
@@ -332,7 +332,7 @@ draw_world(world, tiles, mask = decided)
 #                         for j1 in range(j-k, j+k):
 #                             if in_world(i1, j1):
 #                                     unplace(i1, j1)
-plt.imshow(placement_times)
-plt.show()
+# plt.imshow(placement_times)
+# plt.show()
 
 # print spheres[0]
