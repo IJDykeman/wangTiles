@@ -5,6 +5,7 @@ import struct
 def import_vox(path):
     #parse file
     solids = []
+    material_ids = []
     with open(path, 'rb') as f:
         
         #check filetype
@@ -36,10 +37,11 @@ def import_vox(path):
                 matid = voxel[3]
                 if matid not in matlist:
                     matlist.append(matid)
+                material_ids.append(matid)
         else:
             print('Not a .VOX file')
             return None
-    return solids
+    return solids, material_ids
             
 # def importPalette(path):
 #     orig = bitmaps.BaseBitmap()

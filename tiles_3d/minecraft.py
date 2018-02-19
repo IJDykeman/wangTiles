@@ -546,9 +546,7 @@ class Window(pyglet.window.Window):
             The change in time since the last call.
 
         """
-        print "processing queue"
         self.model.process_queue()
-        print "done"
         sector = sectorize(self.position)
         if sector != self.sector:
             self.model.change_sectors(self.sector, sector)
