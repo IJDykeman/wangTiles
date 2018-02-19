@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import kernprof
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 from extract_tiles import *
 from potentials import *
@@ -172,7 +172,7 @@ def logp(world):
 
 
 
-tile_file_content = get_lines("biasedTowers.txt")
+tile_file_content = get_lines("tiles2.txt")
 tile_file_content = np.array(tile_file_content)
 
 

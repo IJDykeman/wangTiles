@@ -7,7 +7,7 @@ from os.path import isfile, join
 
 
 def get_tile(path):
-    solids = import_vox(path)
+    solids, material_ids = import_vox(path)
     tile = np.array([[[' ']*TILE_WIDTH]*TILE_WIDTH]*TILE_WIDTH)
     for b in solids:
         tile[b] = "#"
@@ -22,7 +22,8 @@ def get_tile(path):
     return result
 
 def get_tiles(v = False):
-    mypath = "/home/isaac/Desktop/comp460/tiles_biased_towers_3/"
+    mypath = "/Users/Isaac/Desktop/comp460/tiles_biased_towers_3/"
+
     onlyfiles = [join(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f))]
     result = []
     for f in onlyfiles:

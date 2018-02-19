@@ -74,7 +74,7 @@ def normalize_probmap_around(i, j):
                 max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1)] = p
 
 
-@profile
+#@profile
 def place(i, j, tile_index):
     decided[i,j] = 1
     global probmap
@@ -113,7 +113,7 @@ def forget(i, j):
     normalize_probmap_around(i,j)
     update_entropy_around(i, j)
 
-@profile
+#@profile
 def unplace(i, j):
     decided[i,j] = 0
     global probmap
@@ -244,7 +244,7 @@ def generate_world():
 
 generate_world()
 
-@profile
+#@profile
 def remove_and_redo(k):
     already_removed = set({})
     for i in range(WORLD_WIDTH):
@@ -263,7 +263,7 @@ def remove_and_redo(k):
 
 draw_world(world, tiles, mask = decided)
 
-@profile
+#@profile
 def fix_world():
     remove_and_redo(4)
     remove_and_redo(5)

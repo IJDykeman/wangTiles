@@ -81,7 +81,7 @@ def f(a):
 
 def create_spheres(tiles):
     p = Pool(7)
-    spheres = p.map(f, zip(range(len(tiles)), [tiles] * len(tiles)))
+    spheres = map(f, zip(range(len(tiles)), [tiles] * len(tiles)))
     spheres = np.array(spheres)
     return spheres
 
