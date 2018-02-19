@@ -22,7 +22,7 @@ def get_tile(path):
     return result
 
 def get_tiles(v = False):
-    mypath = "/home/isaac/Desktop/comp460/tiles2/"
+    mypath = "/home/isaac/Desktop/comp460/tiles_biased_towers_3/"
     onlyfiles = [join(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f))]
     result = []
     for f in onlyfiles:

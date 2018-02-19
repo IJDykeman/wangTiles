@@ -19,6 +19,7 @@ SECTOR_SIZE = 16
 WALKING_SPEED = 5
 FLYING_SPEED = 15
 
+
 GRAVITY = 20.0
 MAX_JUMP_HEIGHT = 1.0 # About the height of a block.
 # To derive the formula for calculating jump speed, first solve
@@ -415,7 +416,7 @@ class Window(pyglet.window.Window):
         self.exclusive = False
 
         # When flying gravity has no effect and speed is increased.
-        self.flying = False
+        self.flying = True
 
         # Strafing is moving lateral to the direction you are facing,
         # e.g. moving to the left or right while continuing to face forward.
@@ -423,7 +424,7 @@ class Window(pyglet.window.Window):
         # First element is -1 when moving forward, 1 when moving back, and 0
         # otherwise. The second element is -1 when moving left, 1 when moving
         # right, and 0 otherwise.
-        self.strafe = [0, 0]
+        self.strafe = [0, 0, 0]
 
         # Current (x, y, z) position in the world, specified with floats. Note
         # that, perhaps unlike in math class, the y-axis is the vertical axis.
@@ -504,9 +505,9 @@ class Window(pyglet.window.Window):
             Tuple containing the velocity in x, y, and z respectively.
 
         """
-        if any(self.strafe):
+        if any(self.strafe[:2]):
             x, y = self.rotation
-            strafe = math.degrees(math.atan2(*self.strafe))
+            strafe = math.degrees(math.atan2(*self.strafe[:2]))
             y_angle = math.radians(y)
             x_angle = math.radians(x + strafe)
             if self.flying:
@@ -524,13 +525,15 @@ class Window(pyglet.window.Window):
                 dx = math.cos(x_angle) * m
                 dz = math.sin(x_angle) * m
             else:
-                dy = 0.0
+                dy = 0
                 dx = math.cos(x_angle)
                 dz = math.sin(x_angle)
         else:
             dy = 0.0
             dx = 0.0
             dz = 0.0
+            if self.flying:
+                dy = self.strafe[2]
         return (dx, dy, dz)
 
     def update(self, dt):
@@ -708,6 +711,11 @@ class Window(pyglet.window.Window):
         elif symbol == key.SPACE:
             if self.dy == 0:
                 self.dy = JUMP_SPEED
+            if self.flying:
+                self.strafe[2] += 1
+        elif symbol == key.LSHIFT:
+            if self.flying:
+                self.strafe[2] -= 1
         elif symbol == key.ESCAPE:
             self.set_exclusive_mouse(False)
         elif symbol == key.TAB:
@@ -736,6 +744,13 @@ class Window(pyglet.window.Window):
             self.strafe[1] += 1
         elif symbol == key.D:
             self.strafe[1] -= 1
+        elif symbol == key.SPACE:
+            if self.flying:
+                    self.strafe[2] -= 1
+        elif symbol == key.LSHIFT:
+            if self.flying:
+                    self.strafe[2] += 1
+
 
     def on_resize(self, width, height):
         """ Called when the window is resized to a new `width` and `height`.
