@@ -22,7 +22,8 @@ def get_tile(path):
     return result
 
 def get_tiles(v = False):
-    mypath = "/Users/Isaac/Desktop/comp460/tiles_biased_towers_3/"
+    # mypath = "/Users/Isaac/Desktop/comp460/tiles_biased_towers_3/"
+    mypath = "/home/isaac/Desktop/comp460/tiles_biased_towers_3/"
 
     onlyfiles = [join(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f))]
     result = []
@@ -37,3 +38,4 @@ def get_tiles(v = False):
         
 
     return result
+https://github.com/gromgull/py-vox-io.git

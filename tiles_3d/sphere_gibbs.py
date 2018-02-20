@@ -341,7 +341,11 @@ solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('1'))))
 # solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)
 solids = map(lambda x: ((x[0], x[1], x[2] , 1)), solids)
 
-minecraft.main(solid = solids)
+# minecraft.main(solid = solids)
+
+
+
+
 # print world[0]
 # @profile
 # def remove_and_redo(k):
