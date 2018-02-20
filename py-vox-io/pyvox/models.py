@@ -2,7 +2,10 @@ from collections import namedtuple
 
 from .defaultpalette import default_palette
 from .utils import chunks
-
+def to_bytes(n, length, endianess='big'):
+    h = '%x' % n
+    s = ('0'*(len(h) % 2) + h).zfill(length*2).decode('hex')
+    return s if endianess == 'big' else s[::-1]
 Size = namedtuple('Size', 'x y z')
 Color = namedtuple('Color', 'r g b a')
 Voxel = namedtuple('Voxel', 'x y z c')
@@ -10,7 +13,7 @@ Model = namedtuple('Model', 'size voxels')
 Material = namedtuple('Material', 'id type weight props')
 
 def get_default_palette():
-    return [ Color( *tuple(i.to_bytes(4,'little')) ) for i in default_palette ]
+    return [ Color( *tuple(to_bytes(i,4,'little')) ) for i in default_palette ]
 
 
 class Vox(object):

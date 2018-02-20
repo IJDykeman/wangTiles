@@ -8,6 +8,8 @@ from os.path import isfile, join
 
 def get_tile(path):
     solids, material_ids = import_vox(path)
+    print path
+    print solids
     tile = np.array([[[' ']*TILE_WIDTH]*TILE_WIDTH]*TILE_WIDTH)
     for b in solids:
         tile[b] = "#"

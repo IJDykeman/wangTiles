@@ -28,7 +28,7 @@ def import_vox(path):
                 #read voxels, ( each voxel : 1 byte x 4 : x, y, z, colorIndex ) x numVoxels
                 bytes = f.read(4)
                 voxel = struct.unpack('<bbbB', bytes)    
-                
+                print voxel
                 #generate Cube and set position, change to 'Oinstance' for instances
                 x,y,z = voxel[1], voxel[2], voxel[0]
                 solids.append((x,y,z))
@@ -41,6 +41,7 @@ def import_vox(path):
         else:
             print('Not a .VOX file')
             return None
+    # print "solids", solids, "mats", material_ids
     return solids, material_ids
             
 # def importPalette(path):
