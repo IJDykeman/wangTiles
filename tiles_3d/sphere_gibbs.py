@@ -344,6 +344,12 @@ solids = map(lambda x: ((x[0], x[1], x[2] , 1)), solids)
 # minecraft.main(solid = solids)
 
 
+from pyvox.models import Vox
+from pyvox.writer import VoxWriter
+a = (worldchars == ord('#')).astype(np.int32)
+vox = Vox.from_dense(a)
+VoxWriter('test.vox', vox).write()
+
 
 
 # print world[0]

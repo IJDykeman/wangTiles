@@ -38,4 +38,3 @@ def get_tiles(v = False):
         
 
     return result
-https://github.com/gromgull/py-vox-io.git
