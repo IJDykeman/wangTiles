@@ -6,6 +6,7 @@ from potentials import *
 from create_sphere import *
 from display import *
 from constants import *
+import random
 
 
 # np.random.seed(0)
@@ -177,7 +178,7 @@ def logp(world):
 
 
 # print "===="
-tiles = get_tiles()
+tiles, tile_properties, tile_priors = get_tiles()
 # random.shuffle(tiles)
 
 
@@ -213,8 +214,28 @@ print
 # print potential(tiles[1], tiles[1], 0,0,1)
 # quit()
 
+def get_air_index():
+    for i, props in enumerate(tile_properties):
+        if props.name =="air":
+            return i
+    assert False
+
+def normalize_probmap(probmap):
+    s = np.sum(probmap, axis = -1)
+    # s[s==0]=1
+    probmap[s==0,:]=1
+    s = np.sum(probmap, axis = -1)
+
+    probmap /= s.reshape(WORLD_WIDTH, WORLD_WIDTH, WORLD_WIDTH, 1)
+    return probmap
+
 world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
 probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH, len(tiles))).astype(np.float32)
+probmap *= np.array(tile_priors).reshape([1,1,1,-1])
+
+
+
+probmap = normalize_probmap(probmap)
 decided = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
 entropy = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)) * 1000000
 
@@ -240,6 +261,7 @@ def report_on_probmap_location(i,j):
 def place_a_tile():
     entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
     i,j,l= entropy_argmin
+    # print i
 
     ts, ps = range(len(tiles)), probmap[i,j,l]
     # print "ps", ps
@@ -250,6 +272,7 @@ def place_a_tile():
 
 # @profile
 def generate_world():
+
     # place(2,2, 1)
     # for _ in range(1):
     #    i = random.randint(0, (WORLD_WIDTH - 1) / 10)
@@ -283,8 +306,20 @@ def generate_world():
             print world[:,:,slicenum]
     print "=======START GENERATION=========="
     # state_report()
-    place(1,1,1,0)
-    print "placing first tile"
+
+    # air_index = get_air_index()
+    # for i in range(WORLD_WIDTH):
+    #     for j in range(WORLD_WIDTH):
+    #         for l in range(WORLD_WIDTH):
+    #             if (i == 0 or i == WORLD_WIDTH-1
+    #                 or j == 0 or j == WORLD_WIDTH-1
+    #                 or l == 0 or l == WORLD_WIDTH-1):
+    #                     if random.random() < .2:
+    #                         place(i, j, l, air_index)
+
+
+    # place(1,1,1,0)
+    # print "placing first tile"
     # state_report()
     # quit()
 
@@ -303,6 +338,8 @@ def generate_world():
     step=0
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
+        if step % 1000 == 0:
+            print str(100.0*(step)/np.prod(decided.shape)) + "% done"
         place_a_tile()
         # print "entropy"
         # print entropy
@@ -324,14 +361,16 @@ import minecraft
 
 
 
-worldchars = np.ones([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
+worldchars = np.zeros([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
 stride = TILE_WIDTH-1
-for i in range(WORLD_WIDTH):
-    for j in range(WORLD_WIDTH):
-        for l in range(WORLD_WIDTH):
-            worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
-                 = np.array(map(ord, list(tiles[world[i,j,l]].flatten()))).reshape([TILE_WIDTH]*3)
-
+for i in range(1, WORLD_WIDTH-1):
+    for j in range(1, WORLD_WIDTH-1):
+        for l in range(1, WORLD_WIDTH-1):
+            if not tile_properties[world[i,j,l]].is_air:
+                worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
+                     = tiles[world[i,j,l]]
+            else:
+                worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] = 0
 
 solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('#'))))
 solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('@'))))
@@ -343,10 +382,11 @@ solids = map(lambda x: ((x[0], x[1], x[2] , 1)), solids)
 
 # minecraft.main(solid = solids)
 
-
+print "writing .vox output"
 from pyvox.models import Vox
 from pyvox.writer import VoxWriter
-a = (worldchars == ord('#')).astype(np.int32)
+a = (worldchars).astype(np.int32)
+print a
 vox = Vox.from_dense(a)
 VoxWriter('test.vox', vox).write()
 
