@@ -21,6 +21,9 @@ t1 = time.time()
 spheres = create_spheres(tiles)
 print time.time() - t1, "to build tiles"
 
+for sphere, props in zip(spheres, tile_properties):
+	if np.sum(np.sum(sphere, axis=-1)==0) != 0:
+		print props.name, "has a zero entry in its sphere"
 
 assert np.sum(np.sum(spheres, axis=-1)==0) == 0, "untileable tile set."
 

@@ -16,10 +16,11 @@ def get_tile(path):
         tile[b] = material_ids[i]
 
     prior = 1.0
-    p = re.compile("prior:\d\.?\d")
+    p = re.compile("prior:?\d*\.?\d*")
+    print path
     if len(p.findall(path)) > 0:
-       prior = float(p.findall(path)[0].split(":")[1])
-       # print prior
+        prior = float(p.findall(path)[0].split("prior")[1])
+        print "  ", prior
     result = [tile]
     tile_properties = [TileProperties(is_air = 'air' in path.lower(), name = path.split("/")[-1].split(".vox")[0])]
     priors = [prior]
@@ -37,8 +38,10 @@ def get_tile(path):
     return result, tile_properties, priors
 
 def get_tiles(v = False):
-    # mypath = "/Users/Isaac/Desktop/comp460/tiles_biased_towers_3/"
-    mypath = "/home/isaac/Desktop/comp460/tiles_biased_towers_7/"
+    # mypath = "/Users/Isaac/Desktop/comp460/tiles_biased_towers_7/"
+    mypath = "/Users/Isaac/Desktop/comp460/tiles_waterfalls_7/"
+
+    # mypath = "/home/isaac/Desktop/comp460/tiles_biased_towers_7/"
     # mypath = "/home/isaac/Desktop/comp460/tiles_biased_fantasy_towers_11/"
 
     
@@ -48,10 +51,14 @@ def get_tiles(v = False):
     tile_properties = []
     priors = []
     for f in onlyfiles:
-        new_tiles, new_tile_properties, new_priors = get_tile(f)
-        result.extend(new_tiles)
-        tile_properties.extend(new_tile_properties)
-        priors.extend(new_priors)
+        try:
+            new_tiles, new_tile_properties, new_priors = get_tile(f)
+            result.extend(new_tiles)
+            tile_properties.extend(new_tile_properties)
+            priors.extend(new_priors)
+        except:
+            print "error processing", f
+            pass
 
     # for i in range(1):
     #     result.extend(get_tile("/home/isaac/Desktop/comp460/tiles/boxWithHall_stairBottom.vox"))

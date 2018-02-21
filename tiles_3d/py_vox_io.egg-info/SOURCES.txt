@@ -1,0 +1,4 @@
+py_vox_io.egg-info/PKG-INFO
+py_vox_io.egg-info/SOURCES.txt
+py_vox_io.egg-info/dependency_links.txt
+py_vox_io.egg-info/top_level.txt

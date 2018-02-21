@@ -1,9 +1,4 @@
-import numpy as np
+import re
 
-a = (np.linalg.norm(np.mgrid[-5:5:10j, -5:5:10j, -5:5:10j], axis=0) < 4).astype(np.int32)
-from pyvox.models import Vox
-from pyvox.writer import VoxWriter
-
-vox = Vox.from_dense(a)
-
-VoxWriter('test.vox', vox).write()
+p = re.compile("prior:?\d*\.?\d*")
+print p.findall("/Users/Isaac/Desktop/comp460/tiles_waterfalls_7/groundEdge_prior10.0.vox")

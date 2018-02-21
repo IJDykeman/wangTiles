@@ -1,3 +1,4 @@
+README.md
 setup.py
 py_vox_io.egg-info/PKG-INFO
 py_vox_io.egg-info/SOURCES.txt
