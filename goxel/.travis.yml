@@ -1,0 +1,45 @@
+# Travis configuration for automatic build
+
+language: c++
+
+matrix:
+  include:
+      # gcc disabled until I find a way to do something equivalent to
+      # Wno-incompatible-pointer-types-discards-qualifiers with gcc 4.8
+      #    - os: linux
+      #      sudo: required
+      #      dist: trusty
+      #      compiler: gcc
+    - os: linux
+      sudo: required
+      dist: trusty
+      compiler: clang
+    - os: osx
+      osx_image: xcode8.3
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      sudo apt-get -qq update;
+      sudo apt-get install -y libgtk-3-dev mesa-common-dev libgl1-mesa-dev;
+      wget https://github.com/glfw/glfw/releases/download/3.2.1/glfw-3.2.1.zip;
+    fi
+
+install:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      unzip glfw-3.2.1.zip;
+      cd glfw-3.2.1;
+      cmake -G "Unix Makefiles" -DBUILD_SHARED_LIBS=ON;
+      make;
+      sudo make install;
+      cd ..;
+    fi
+
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      make release || travis_terminate 1;
+    fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      cd osx/goxel;
+      xcodebuild build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO || travis_terminate 1;
+      cd ../..;
+    fi

@@ -1,0 +1,1275 @@
+/* Goxel 3D voxels editor
+ *
+ * copyright (c) 2015 Guillaume Chereau <guillaume@noctua-software.com>
+ *
+ * Goxel is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+
+ * Goxel is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * goxel.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+#include "goxel.h"
+
+/*
+ * The rendering is delayed from the time we call the different render
+ * functions.  This allows to call `render_xxx` anywhere in the code, without
+ * having to worry about the current OpenGL state.
+ *
+ * Since generating the blocks vertex buffers is slow, we buffer them in a hash
+ * table.  We can evict blocks from the buffer when we need to save space or
+ * if we know that the block won't be used anymore.
+ */
+
+// TODO: we need to get ride of unused blocks in the buffer, that hav not been
+// rendered for too long.  First we might need to keep track of how much video
+// memory is used, so we get an idea of how much we need that.
+
+enum {
+    ITEM_BLOCK,
+    ITEM_MESH,
+    ITEM_MODEL3D,
+    ITEM_GRID,
+};
+
+typedef struct {
+    uint64_t ids[27];
+    int effects;
+} block_item_key_t;
+
+struct render_item_t
+{
+    render_item_t   *next, *prev;   // The rendering queue.
+    int             type;
+    block_item_key_t key;
+
+    union {
+        mesh_t          *mesh;
+        float           mat[4][4];
+    };
+    uint8_t         color[4];
+    bool            proj_screen; // Render with a 2d proj.
+    model3d_t       *model3d;
+    texture_t       *tex;
+    int             effects;
+
+    GLuint      vertex_buffer;
+    int         size;           // 4 (quads) or 3 (triangles).
+    int         nb_elements;    // Number of quads or triangle.
+};
+
+// The buffered item hash table.  For the moment it is only used of the blocks.
+// static render_item_t *g_items = NULL;
+
+// The cache of the g_items.
+static cache_t   *g_items_cache;
+static const int BATCH_QUAD_COUNT = 1 << 14;
+static model3d_t *g_cube_model;
+static model3d_t *g_line_model;
+static model3d_t *g_wire_cube_model;
+static model3d_t *g_sphere_model;
+static model3d_t *g_grid_model;
+static model3d_t *g_rect_model;
+static model3d_t *g_wire_rect_model;
+
+// All the shaders code is at the bottom of the file.
+static const char *VSHADER;
+static const char *FSHADER;
+static const char *POS_DATA_VSHADER;
+static const char *POS_DATA_FSHADER;
+static const char *SHADOW_MAP_VSHADER;
+static const char *SHADOW_MAP_FSHADER;
+static const char *BACKGROUND_VSHADER;
+static const char *BACKGROUND_FSHADER;
+
+typedef struct {
+    // Those values are used as a key to identify the shader.
+    const char *vshader;
+    const char *fshader;
+    const char *include;
+
+    GLint prog;
+    GLint u_model_l;
+    GLint u_view_l;
+    GLint u_proj_l;
+    GLint u_l_dir_l;
+    GLint u_l_int_l;
+    GLint u_m_amb_l;
+    GLint u_m_dif_l;
+    GLint u_m_spe_l;
+    GLint u_m_shi_l;
+    GLint u_m_smo_l;
+    GLint u_bshadow_tex_l;
+    GLint u_bshadow_l;
+    GLint u_bump_tex_l;
+    GLint u_pos_scale_l;
+    GLint u_shadow_mvp_l;
+    GLint u_shadow_k_l;
+    GLint u_shadow_tex_l;
+    GLint u_block_id_l;
+} prog_t;
+
+// Static list of programs.  Need to be big enough for all the possible
+// shaders we are going to use.
+static prog_t g_progs[5] = {};
+
+
+static GLuint g_index_buffer;
+static GLuint g_background_array_buffer;
+static GLuint g_border_tex;
+static GLuint g_bump_tex;
+static GLuint g_shadow_map_fbo;
+static texture_t *g_shadow_map; // XXX: the fbo should be part of the tex.
+
+#define OFFSET(n) offsetof(voxel_vertex_t, n)
+
+// The list of all the attributes used by the shaders.
+static const struct {
+    const char *name;
+    int size;
+    int type;
+    int norm;
+    int offset;
+} ATTRIBUTES[] = {
+    {"a_pos",           3, GL_UNSIGNED_BYTE,   false, OFFSET(pos)},
+    {"a_normal",        3, GL_BYTE,            false, OFFSET(normal)},
+    {"a_color",         4, GL_UNSIGNED_BYTE,   true,  OFFSET(color)},
+    {"a_pos_data",      2, GL_UNSIGNED_BYTE,   true,  OFFSET(pos_data)},
+    {"a_uv",            2, GL_UNSIGNED_BYTE,   true,  OFFSET(uv)},
+    {"a_bump_uv",       2, GL_UNSIGNED_BYTE,   false, OFFSET(bump_uv)},
+    {"a_bshadow_uv",    2, GL_UNSIGNED_BYTE,   false, OFFSET(bshadow_uv)},
+};
+
+/*
+ *  Create a texture atlas of the 256 possible border textures for a voxel
+ *  face.  Each pixel correspond to the minimum distance to a border or an
+ *  edge.
+ *
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |10 |11 |12 |13 |14 |15 |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |16 |.. |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+ *
+ *  The index into the atlas is the bit mask of the touching side for
+ *  the 4 corners and the 4 edges => 8bit => 256 blocks.
+ *
+ */
+
+static void copy_color(const uint8_t in[4], uint8_t out[4])
+{
+    if (in == NULL) {
+        out[0] = 255;
+        out[1] = 255;
+        out[2] = 255;
+        out[3] = 255;
+    } else {
+        memcpy(out, in, 4);
+    }
+}
+
+static float get_border_dist(float x, float y, int mask)
+{
+    const float corners[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+    const float normals[4][2] = {{0, 1}, {-1, 0}, {0, -1}, {1, 0}};
+    float ret = 1;
+    int i;
+    float u[2];
+    float p[2] = {x, y};
+    for (i = 0; i < 4; i++) {
+        if (mask & (1 << i))        // Corners.
+            ret = min(ret, vec2_dist(p, corners[i]));
+        if (mask & (0x10 << i)) {  // Edges.
+            vec2_sub(p, corners[i], u);
+            ret = min(ret, vec2_dot(normals[i], u));
+        }
+    }
+    return ret;
+}
+
+static void init_border_texture(void)
+{
+    const int s = VOXEL_TEXTURE_SIZE;    // the individual tile size.
+    uint8_t data[256 * s * s];
+    int mask, x, y, ax, ay;
+    for (mask = 0; mask < 256; mask++) {
+        for (y = 0; y < s; y++) for (x = 0; x < s; x++) {
+            ay = mask / 16 * s + y;
+            ax = mask % 16 * s + x;
+            data[ay * s * 16 + ax] = 255 * get_border_dist(
+                    (float)x / s + 0.5 / s, (float)y / s + 0.5 / s, mask);
+        }
+    }
+    GL(glGenTextures(1, &g_border_tex));
+    GL(glActiveTexture(GL_TEXTURE0));
+    GL(glBindTexture(GL_TEXTURE_2D, g_border_tex));
+    GL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, s * 16, s * 16,
+                    0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data));
+}
+
+static void bump_img_fill(uint8_t (*data)[3], int x, int y, int w, int h,
+                          const uint8_t v[3])
+{
+    int i, j;
+    for (j = y; j < y + h; j++) {
+        for (i = x; i < x + w; i++) {
+            memcpy(data[j * 256 + i], v, 3);
+        }
+    }
+}
+
+static void bump_neighbor_value(int f, int e, uint8_t out[3])
+{
+    assert(e >= 0 && e < 4);
+    assert(f >= 0 && f < 6);
+    const int *n0, *n1;
+    n0 = FACES_NORMALS[f];
+    n1 = FACES_NORMALS[FACES_NEIGHBORS[f][e]];
+    out[0] = (int)(n0[0] + n1[0]) * 127 / 2 + 127;
+    out[1] = (int)(n0[1] + n1[1]) * 127 / 2 + 127;
+    out[2] = (int)(n0[2] + n1[2]) * 127 / 2 + 127;
+}
+
+static void set_bump_block(uint8_t (*data)[3], int bx, int by, int f, int mask)
+{
+    const uint8_t v[3] = {127 + FACES_NORMALS[f][0] * 127,
+                          127 + FACES_NORMALS[f][1] * 127,
+                          127 + FACES_NORMALS[f][2] * 127};
+    uint8_t nv[3];
+    bump_img_fill(data, bx * 16, by * 16, 16, 16, v);
+    if (mask & 1) {
+        bump_neighbor_value(f, 0, nv);
+        bump_img_fill(data, bx * 16, by * 16, 16, 1, nv);
+    }
+    if (mask & 2) {
+        bump_neighbor_value(f, 1, nv);
+        bump_img_fill(data, bx * 16 + 15, by * 16, 1, 16, nv);
+    }
+    if (mask & 4) {
+        bump_neighbor_value(f, 2, nv);
+        bump_img_fill(data, bx * 16, by * 16 + 15, 16, 1, nv);
+    }
+    if (mask & 8) {
+        bump_neighbor_value(f, 3, nv);
+        bump_img_fill(data, bx * 16, by * 16, 1, 16, nv);
+    }
+}
+
+static void init_bump_texture(void)
+{
+    uint8_t (*data)[3];
+    int i, f, mask;
+    data = calloc(1, 256 * 256 * 3);
+    for (i = 0; i < 256; i++) {
+        f = (i / 16) % 6;
+        mask = i % 16;
+        set_bump_block(data, i % 16, i / 16, f, mask);
+    }
+    GL(glGenTextures(1, &g_bump_tex));
+    GL(glActiveTexture(GL_TEXTURE0));
+    GL(glBindTexture(GL_TEXTURE_2D, g_bump_tex));
+    GL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256,
+                    0, GL_RGB, GL_UNSIGNED_BYTE, data));
+    free(data);
+}
+
+static void init_prog(prog_t *prog, const char *vshader, const char *fshader,
+                      const char *include)
+{
+    char include_full[256];
+    int attr;
+    sprintf(include_full, "#define VOXEL_TEXTURE_SIZE %d.0\n%s\n",
+            VOXEL_TEXTURE_SIZE, include ?: "");
+    prog->vshader = vshader;
+    prog->fshader = fshader;
+    prog->include = include;
+    prog->prog = create_program(vshader, fshader, include_full);
+    for (attr = 0; attr < ARRAY_SIZE(ATTRIBUTES); attr++) {
+        GL(glBindAttribLocation(prog->prog, attr, ATTRIBUTES[attr].name));
+    }
+    GL(glLinkProgram(prog->prog));
+    GL(glUseProgram(prog->prog));
+#define UNIFORM(x) GL(prog->x##_l = glGetUniformLocation(prog->prog, #x))
+    UNIFORM(u_model);
+    UNIFORM(u_view);
+    UNIFORM(u_proj);
+    UNIFORM(u_l_dir);
+    UNIFORM(u_l_int);
+    UNIFORM(u_m_amb);
+    UNIFORM(u_m_dif);
+    UNIFORM(u_m_spe);
+    UNIFORM(u_m_shi);
+    UNIFORM(u_m_smo);
+    UNIFORM(u_bshadow_tex);
+    UNIFORM(u_bshadow);
+    UNIFORM(u_bump_tex);
+    UNIFORM(u_pos_scale);
+    UNIFORM(u_shadow_mvp);
+    UNIFORM(u_shadow_k);
+    UNIFORM(u_shadow_tex);
+    UNIFORM(u_block_id);
+#undef UNIFORM
+    GL(glUniform1i(prog->u_bshadow_tex_l, 0));
+    GL(glUniform1i(prog->u_bump_tex_l, 1));
+    GL(glUniform1i(prog->u_shadow_tex_l, 2));
+}
+
+static prog_t *get_prog(const char *vshader, const char *fshader,
+                        const char *include)
+{
+    int i;
+    prog_t *p = NULL;
+    for (i = 0; i < ARRAY_SIZE(g_progs); i++) {
+        p = &g_progs[i];
+        if (!p->vshader) break;
+        if (p->vshader == vshader && p->fshader == fshader &&
+            p->include == include)
+            return p;
+    }
+    assert(i < ARRAY_SIZE(g_progs));
+    init_prog(p, vshader, fshader, include);
+    return p;
+}
+
+void render_init()
+{
+    LOG_D("render init");
+    GL(glGenBuffers(1, &g_index_buffer));
+    GL(glGenBuffers(1, &g_background_array_buffer));
+
+    // 6 vertices (2 triangles) per face.
+    uint16_t *index_array = NULL;
+    int i;
+    index_array = calloc(BATCH_QUAD_COUNT * 6, sizeof(*index_array));
+    for (i = 0; i < BATCH_QUAD_COUNT * 6; i++) {
+        index_array[i] = (i / 6) * 4 + ((int[]){0, 1, 2, 2, 3, 0})[i % 6];
+    }
+
+    GL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_index_buffer));
+    GL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, BATCH_QUAD_COUNT * 6 * 2,
+                    index_array, GL_STATIC_DRAW));
+    free(index_array);
+    init_border_texture();
+    init_bump_texture();
+
+    // XXX: pick the proper memory size according to what is available.
+    g_items_cache = cache_create(1 * GB);
+    g_cube_model = model3d_cube();
+    g_line_model = model3d_line();
+    g_wire_cube_model = model3d_wire_cube();
+    g_sphere_model = model3d_sphere(16, 16);
+    g_grid_model = model3d_grid(8, 8);
+    g_rect_model = model3d_rect();
+    g_wire_rect_model = model3d_wire_rect();
+}
+
+void render_deinit(void)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(g_progs); i++) {
+        if (g_progs[i].prog)
+            delete_program(g_progs[i].prog);
+    }
+    memset(&g_progs, 0, sizeof(g_progs));
+    GL(glDeleteBuffers(1, &g_index_buffer));
+    g_index_buffer = 0;
+}
+
+// A global buffer large enough to contain all the vertices for any block.
+static voxel_vertex_t* g_vertices_buffer = NULL;
+
+// Used for the cache.
+static int item_delete(void *item_)
+{
+    render_item_t *item = item_;
+    GL(glDeleteBuffers(1, &item->vertex_buffer));
+    free(item);
+    return 0;
+}
+
+static render_item_t *get_item_for_block(
+        const mesh_t *mesh,
+        mesh_iterator_t *iter,
+        const int block_pos[3],
+        int effects)
+{
+    render_item_t *item;
+    const int effects_mask = EFFECT_BORDERS | EFFECT_BORDERS_ALL |
+                             EFFECT_MARCHING_CUBES | EFFECT_SMOOTH |
+                             EFFECT_FLAT;
+    uint64_t block_data_id;
+    int p[3], i, x, y, z;
+    block_item_key_t key = {};
+
+    // For the moment we always compute the smooth normal no mater what.
+    effects |= EFFECT_SMOOTH;
+
+    memset(&key, 0, sizeof(key)); // Just to be sure!
+    key.effects = effects & effects_mask;
+    // The hash key take into consideration all the blocks adjacent to
+    // the current block!
+    for (i = 0, z = -1; z <= 1; z++)
+    for (y = -1; y <= 1; y++)
+    for (x = -1; x <= 1; x++, i++) {
+        p[0] = block_pos[0] + x * BLOCK_SIZE;
+        p[1] = block_pos[1] + y * BLOCK_SIZE;
+        p[2] = block_pos[2] + z * BLOCK_SIZE;
+        mesh_get_block_data(mesh, NULL, p, &block_data_id);
+        key.ids[i] = block_data_id;
+    }
+
+    item = cache_get(g_items_cache, &key, sizeof(key));
+    if (item) return item;
+
+    item = calloc(1, sizeof(*item));
+    item->key = key;
+    GL(glGenBuffers(1, &item->vertex_buffer));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, item->vertex_buffer));
+    if (!g_vertices_buffer)
+        g_vertices_buffer = calloc(
+                BLOCK_SIZE * BLOCK_SIZE * BLOCK_SIZE * 6 * 4,
+                sizeof(*g_vertices_buffer));
+    item->nb_elements = mesh_generate_vertices(
+            mesh, block_pos, effects, g_vertices_buffer);
+    item->size = (effects & EFFECT_MARCHING_CUBES) ? 3 : 4;
+    if (item->nb_elements > BATCH_QUAD_COUNT) {
+        LOG_W("Too many quads!");
+        item->nb_elements = BATCH_QUAD_COUNT;
+    }
+    if (item->nb_elements != 0) {
+        GL(glBufferData(GL_ARRAY_BUFFER,
+                item->nb_elements * item->size * sizeof(*g_vertices_buffer),
+                g_vertices_buffer, GL_STATIC_DRAW));
+    }
+
+    cache_add(g_items_cache, &key, sizeof(key), item,
+              item->nb_elements * item->size * sizeof(*g_vertices_buffer),
+              item_delete);
+    return item;
+}
+
+static void render_block_(renderer_t *rend, mesh_t *mesh,
+                          mesh_iterator_t *iter,
+                          const int block_pos[3],
+                          int block_id,
+                          int effects, prog_t *prog,
+                          const float model[4][4])
+{
+    render_item_t *item;
+    float block_model[4][4];
+    int attr;
+    float block_id_f[2];
+
+    item = get_item_for_block(mesh, iter, block_pos, effects);
+    if (item->nb_elements == 0) return;
+    GL(glBindBuffer(GL_ARRAY_BUFFER, item->vertex_buffer));
+    if (prog->u_block_id_l != -1) {
+        block_id_f[1] = ((block_id >> 8) & 0xff) / 255.0;
+        block_id_f[0] = ((block_id >> 0) & 0xff) / 255.0;
+        GL(glUniform2fv(prog->u_block_id_l, 1, block_id_f));
+    }
+
+    for (attr = 0; attr < ARRAY_SIZE(ATTRIBUTES); attr++) {
+        GL(glVertexAttribPointer(attr,
+                                 ATTRIBUTES[attr].size,
+                                 ATTRIBUTES[attr].type,
+                                 ATTRIBUTES[attr].norm,
+                                 sizeof(voxel_vertex_t),
+                                 (void*)(intptr_t)ATTRIBUTES[attr].offset));
+    }
+
+    mat4_copy(model, block_model);
+    mat4_itranslate(block_model, block_pos[0], block_pos[1], block_pos[2]);
+    GL(glUniformMatrix4fv(prog->u_model_l, 1, 0, (float*)block_model));
+    if (item->size == 4) {
+        // Use indexed triangles.
+        GL(glDrawElements(GL_TRIANGLES, item->nb_elements * 6,
+                          GL_UNSIGNED_SHORT, 0));
+    } else {
+        GL(glDrawArrays(GL_TRIANGLES, 0, item->nb_elements * item->size));
+    }
+}
+
+static void get_light_dir(const renderer_t *rend, bool model_view,
+                          float out[3])
+{
+    float light_dir[4];
+    float m[4][4];
+
+    mat4_set_identity(m);
+    mat4_irotate(m, rend->light.yaw, 0, 0, 1);
+    mat4_irotate(m, rend->light.pitch, 1, 0, 0);
+    mat4_mul_vec4(m, VEC(0, 0, 1, 0), light_dir);
+
+    if (rend->light.fixed) {
+        mat4_invert(rend->view_mat, m);
+        mat4_irotate(m, -M_PI / 4, 1, 0, 0);
+        mat4_irotate(m, -M_PI / 4, 0, 0, 1);
+        mat4_mul_vec4(m, light_dir, light_dir);
+    }
+    if (model_view)
+        mat4_mul_vec4(rend->view_mat, light_dir, light_dir);
+    vec3_copy(light_dir, out);
+}
+
+void render_get_light_dir(const renderer_t *rend, float out[3])
+{
+    get_light_dir(rend, false, out);
+}
+
+// Compute the minimum projection box to use for the shadow map.
+static void compute_shadow_map_box(
+                const renderer_t *rend,
+                float rect[6])
+{
+    const float POS[8][3] = {
+        {-0.5, -0.5, -0.5},
+        {+0.5, -0.5, -0.5},
+        {+0.5, -0.5, +0.5},
+        {-0.5, -0.5, +0.5},
+        {-0.5, +0.5, -0.5},
+        {+0.5, +0.5, -0.5},
+        {+0.5, +0.5, +0.5},
+        {-0.5, +0.5, +0.5}
+    };
+    const int N = BLOCK_SIZE;
+
+    render_item_t *item;
+    float p[3];
+    int i, bpos[3];
+    mesh_iterator_t iter;
+    float view_mat[4][4], light_dir[3];
+
+    get_light_dir(rend, false, light_dir);
+    mat4_lookat(view_mat, light_dir, VEC(0, 0, 0), VEC(0, 1, 0));
+    for (i = 0; i < 6; i++)
+        rect[i] = NAN;
+
+    DL_FOREACH(rend->items, item) {
+        if (item->type != ITEM_MESH) continue;
+        iter = mesh_get_iterator(item->mesh, MESH_ITER_BLOCKS);
+        while (mesh_iter(&iter, bpos)) {
+            for (i = 0; i < 8; i++) {
+                vec3_set(p, bpos[0], bpos[1], bpos[2]);
+                vec3_addk(p, POS[i], N, p);
+                mat4_mul_vec3(view_mat, p, p);
+                rect[0] = min(rect[0], p[0]);
+                rect[1] = max(rect[1], p[0]);
+                rect[2] = min(rect[2], p[1]);
+                rect[3] = max(rect[3], p[1]);
+                rect[4] = min(rect[4], -p[2]);
+                rect[5] = max(rect[5], -p[2]);
+            }
+        }
+    }
+}
+
+static void render_mesh_(renderer_t *rend, mesh_t *mesh, int effects,
+                         const float shadow_mvp[4][4])
+{
+    prog_t *prog;
+    float model[4][4];
+    int attr, block_pos[3], block_id;
+    float pos_scale = 1.0f;
+    float light_dir[3];
+    bool shadow = false;
+    mesh_iterator_t iter;
+
+    mat4_set_identity(model);
+    get_light_dir(rend, true, light_dir);
+
+    if (effects & EFFECT_MARCHING_CUBES)
+        pos_scale = 1.0 / MC_VOXEL_SUB_POS;
+
+    if (effects & EFFECT_RENDER_POS)
+        prog = get_prog(POS_DATA_VSHADER, POS_DATA_FSHADER, NULL);
+    else if (effects & EFFECT_SHADOW_MAP)
+        prog = get_prog(SHADOW_MAP_VSHADER, SHADOW_MAP_FSHADER, NULL);
+    else {
+        shadow = rend->settings.shadow;
+        prog = get_prog(VSHADER, FSHADER,
+                        shadow ? "#define SHADOW" : NULL);
+    }
+
+    GL(glEnable(GL_DEPTH_TEST));
+    GL(glDepthFunc(GL_LESS));
+    GL(glEnable(GL_CULL_FACE));
+    GL(glCullFace(GL_BACK));
+    GL(glActiveTexture(GL_TEXTURE0));
+    GL(glBindTexture(GL_TEXTURE_2D, g_border_tex));
+    GL(glActiveTexture(GL_TEXTURE1));
+    GL(glBindTexture(GL_TEXTURE_2D, g_bump_tex));
+    GL(glDisable(GL_BLEND));
+
+    if (effects & EFFECT_SEE_BACK) {
+        GL(glCullFace(GL_FRONT));
+        vec3_imul(light_dir, -0.5);
+    }
+    if (effects & EFFECT_SEMI_TRANSPARENT) {
+        GL(glEnable(GL_BLEND));
+        GL(glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_COLOR));
+        GL(glBlendColor(0.75, 0.75, 0.75, 0.75));
+    }
+
+    GL(glUseProgram(prog->prog));
+
+    if (shadow) {
+        assert(shadow_mvp);
+        GL(glActiveTexture(GL_TEXTURE2));
+        GL(glBindTexture(GL_TEXTURE_2D, g_shadow_map->tex));
+        GL(glUniformMatrix4fv(prog->u_shadow_mvp_l, 1, 0, (float*)shadow_mvp));
+        GL(glUniform1i(prog->u_shadow_tex_l, 2));
+        GL(glUniform1f(prog->u_shadow_k_l, rend->settings.shadow));
+    }
+
+    GL(glUniformMatrix4fv(prog->u_proj_l, 1, 0, (float*)rend->proj_mat));
+    GL(glUniformMatrix4fv(prog->u_view_l, 1, 0, (float*)rend->view_mat));
+    GL(glUniform1i(prog->u_bshadow_tex_l, 0));
+    GL(glUniform1i(prog->u_bump_tex_l, 1));
+    GL(glUniform3fv(prog->u_l_dir_l, 1, light_dir));
+    GL(glUniform1f(prog->u_l_int_l, rend->light.intensity));
+    GL(glUniform1f(prog->u_m_amb_l, rend->settings.ambient));
+    GL(glUniform1f(prog->u_m_dif_l, rend->settings.diffuse));
+    GL(glUniform1f(prog->u_m_spe_l, rend->settings.specular));
+    GL(glUniform1f(prog->u_m_shi_l, rend->settings.shininess));
+    GL(glUniform1f(prog->u_m_smo_l, rend->settings.smoothness));
+    GL(glUniform1f(prog->u_bshadow_l, rend->settings.border_shadow));
+    GL(glUniform1f(prog->u_pos_scale_l, pos_scale));
+
+    for (attr = 0; attr < ARRAY_SIZE(ATTRIBUTES); attr++)
+        GL(glEnableVertexAttribArray(attr));
+
+    GL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_index_buffer));
+
+    block_id = 1;
+    iter = mesh_get_iterator(mesh,
+            MESH_ITER_BLOCKS | MESH_ITER_INCLUDES_NEIGHBORS);
+    while (mesh_iter(&iter, block_pos)) {
+        render_block_(rend, mesh, &iter, block_pos,
+                      block_id++, effects, prog, model);
+    }
+    for (attr = 0; attr < ARRAY_SIZE(ATTRIBUTES); attr++)
+        GL(glDisableVertexAttribArray(attr));
+
+    if (effects & EFFECT_SEE_BACK) {
+        effects &= ~EFFECT_SEE_BACK;
+        effects |= EFFECT_SEMI_TRANSPARENT;
+        render_mesh_(rend, mesh, effects, shadow_mvp);
+    }
+}
+
+// XXX: this is quite ugly.  We could maybe use a callback of some sort
+// in the renderer instead.
+void render_get_block_pos(renderer_t *rend, const mesh_t *mesh,
+                          int id, int pos[3])
+{
+    // Basically we simulate the algo of render_mesh_ but without rendering
+    // anything.
+    int block_id, block_pos[3];
+    mesh_iterator_t iter;
+    block_id = 1;
+    iter = mesh_get_iterator(mesh,
+            MESH_ITER_BLOCKS | MESH_ITER_INCLUDES_NEIGHBORS);
+    while (mesh_iter(&iter, block_pos)) {
+        if (block_id == id) {
+            memcpy(pos, block_pos, sizeof(block_pos));
+            return;
+        }
+        block_id++;
+    }
+}
+
+void render_mesh(renderer_t *rend, const mesh_t *mesh, int effects)
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    item->type = ITEM_MESH;
+    item->mesh = mesh_copy(mesh);
+    item->effects = effects | rend->settings.effects;
+    // With EFFECT_RENDER_POS we need to remove some effects.
+    if (item->effects & EFFECT_RENDER_POS)
+        item->effects &= ~(EFFECT_SEMI_TRANSPARENT | EFFECT_SEE_BACK |
+                           EFFECT_MARCHING_CUBES);
+    DL_APPEND(rend->items, item);
+}
+
+static void render_model_item(renderer_t *rend, const render_item_t *item)
+{
+    float view[4][4];
+    float proj[4][4];
+    float (*proj_mat)[4][4];
+    float light[3];
+
+    mat4_copy(rend->view_mat, view);
+    mat4_imul(view, item->mat);
+
+    if (item->proj_screen) {
+        mat4_ortho(proj, -0.5, +0.5, -0.5, +0.5, -10, +10);
+        proj_mat = &proj;
+        mat4_copy(item->mat, view);
+    } else {
+        proj_mat = &rend->proj_mat;
+    }
+
+    if (!(item->effects & EFFECT_WIREFRAME))
+        get_light_dir(rend, false, light);
+
+    model3d_render(item->model3d, view, *proj_mat, item->color,
+                   item->tex, light, item->effects);
+}
+
+static void render_grid_item(renderer_t *rend, const render_item_t *item)
+{
+    int x, y, n;
+    float view2[4][4], view3[4][4];
+
+    mat4_copy(rend->view_mat, view2);
+    mat4_imul(view2, item->mat);
+    n = 3;
+    for (y = -n; y < n; y++)
+    for (x = -n; x < n; x++) {
+        mat4_translate(view2, x + 0.5, y + 0.5, 0, view3);
+        model3d_render(item->model3d, view3, rend->proj_mat,
+                       item->color, NULL, NULL, 0);
+    }
+}
+
+void render_plane(renderer_t *rend, const float plane[4][4],
+                  const uint8_t color[4])
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    item->type = ITEM_GRID;
+    mat4_copy(plane, item->mat);
+    mat4_iscale(item->mat, 8, 8, 1);
+    item->model3d = g_grid_model;
+    copy_color(color, item->color);
+    DL_APPEND(rend->items, item);
+}
+
+void render_img(renderer_t *rend, texture_t *tex, const float mat[4][4],
+                int effects)
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    item->type = ITEM_MODEL3D;
+    mat ? mat4_copy(mat, item->mat) : mat4_set_identity(item->mat);
+    item->proj_screen = !mat;
+    item->tex = texture_copy(tex);
+    item->model3d = g_rect_model;
+    copy_color(NULL, item->color);
+    item->effects = effects;
+    DL_APPEND(rend->items, item);
+}
+
+void render_rect(renderer_t *rend, const float plane[4][4], int effects)
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    assert((effects & EFFECT_STRIP) == effects);
+    item->type = ITEM_MODEL3D;
+    mat4_copy(plane, item->mat);
+    item->model3d = g_wire_rect_model;
+    copy_color(NULL, item->color);
+    item->proj_screen = true;
+    item->effects = effects;
+    DL_APPEND(rend->items, item);
+}
+
+// Return a plane whose u vector is the line ab.
+static void line_create_plane(const float a[3], const float b[3],
+                              float out[4][4])
+{
+    mat4_set_identity(out);
+    vec3_copy(a, out[3]);
+    vec3_sub(b, a, out[0]);
+}
+
+void render_line(renderer_t *rend, const float a[3], const float b[3],
+                 const uint8_t color[4])
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    item->type = ITEM_MODEL3D;
+    item->model3d = g_line_model;
+    line_create_plane(a, b, item->mat);
+    copy_color(color, item->color);
+    mat4_itranslate(item->mat, 0.5, 0, 0);
+    DL_APPEND(rend->items, item);
+}
+
+void render_box(renderer_t *rend, const float box[4][4],
+                const uint8_t color[4], int effects)
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    assert((effects & (EFFECT_STRIP | EFFECT_WIREFRAME | EFFECT_SEE_BACK)) \
+            == effects);
+    item->type = ITEM_MODEL3D;
+    mat4_copy(box, item->mat);
+    copy_color(color, item->color);
+    item->effects = effects;
+    item->model3d = (effects & EFFECT_WIREFRAME) ? g_wire_cube_model :
+                                                   g_cube_model;
+    DL_APPEND(rend->items, item);
+}
+
+void render_sphere(renderer_t *rend, const float mat[4][4])
+{
+    render_item_t *item = calloc(1, sizeof(*item));
+    item->type = ITEM_MODEL3D;
+    mat4_copy(mat, item->mat);
+    item->model3d = g_sphere_model;
+    DL_APPEND(rend->items, item);
+}
+
+static int item_sort_value(const render_item_t *a)
+{
+    if (a->proj_screen)     return 10;
+    switch (a->type) {
+        case ITEM_MESH:     return 0;
+        case ITEM_MODEL3D:  return 1;
+        case ITEM_GRID:     return 2;
+        default:            return 0;
+    }
+}
+
+static int item_sort_cmp(const render_item_t *a, const render_item_t *b)
+{
+    return sign(item_sort_value(a) - item_sort_value(b));
+}
+
+
+static void render_shadow_map(renderer_t *rend, float shadow_mvp[4][4])
+{
+    render_item_t *item;
+    float rect[6], light_dir[3];
+    int effects;
+    // Create a renderer looking at the scene from the light.
+    compute_shadow_map_box(rend, rect);
+    float bias_mat[4][4] = {{0.5, 0.0, 0.0, 0.0},
+                            {0.0, 0.5, 0.0, 0.0},
+                            {0.0, 0.0, 0.5, 0.0},
+                            {0.5, 0.5, 0.5, 1.0}};
+    float ret[4][4];
+    renderer_t srend = {};
+    get_light_dir(rend, false, light_dir);
+    mat4_lookat(srend.view_mat, light_dir, VEC(0, 0, 0), VEC(0, 1, 0));
+    mat4_ortho(srend.proj_mat,
+               rect[0], rect[1], rect[2], rect[3], rect[4], rect[5]);
+
+    // Generate the depth buffer.
+    if (!g_shadow_map_fbo) {
+        GL(glGenFramebuffers(1, &g_shadow_map_fbo));
+        GL(glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_map_fbo));
+        GL(glDrawBuffer(GL_NONE));
+        GL(glReadBuffer(GL_NONE));
+        g_shadow_map = texture_new_surface(2048, 2048, 0);
+        GL(glBindTexture(GL_TEXTURE_2D, g_shadow_map->tex));
+        GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                        2048, 2048, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                 GL_TEXTURE_2D, g_shadow_map->tex, 0));
+    }
+
+    GL(glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_map_fbo));
+    GL(glViewport(0, 0, 2048, 2048));
+    GL(glClear(GL_DEPTH_BUFFER_BIT));
+
+    DL_FOREACH(rend->items, item) {
+        if (item->type == ITEM_MESH) {
+            effects = (item->effects & EFFECT_MARCHING_CUBES);
+            effects |= EFFECT_SHADOW_MAP;
+            render_mesh_(&srend, item->mesh, effects, NULL);
+        }
+    }
+    mat4_copy(bias_mat, ret);
+    mat4_imul(ret, srend.proj_mat);
+    mat4_imul(ret, srend.view_mat);
+    mat4_copy(ret, shadow_mvp);
+}
+
+static void render_background(renderer_t *rend, const uint8_t col[4])
+{
+    prog_t *prog;
+    typedef struct {
+        int8_t  pos[3]       __attribute__((aligned(4)));
+        float   color[4]     __attribute__((aligned(4)));
+    } vertex_t;
+    vertex_t vertices[4];
+    float c1[4], c2[4];
+
+    if (col[3] == 0) {
+        GL(glClearColor(0, 0, 0, 0));
+        GL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        return;
+    }
+
+    // Add a small gradient to the color.
+    vec4_set(c1, col[0] / 255., col[1] / 255., col[2] / 255., col[3] / 255.);
+    vec4_set(c2, col[0] / 255., col[1] / 255., col[2] / 255., col[3] / 255.);
+    vec3_iadd(c1, VEC(+0.2, +0.2, +0.2));
+    vec3_iadd(c2, VEC(-0.2, -0.2, -0.2));
+
+    vertices[0] = (vertex_t){{-1, -1, 0}, {c1[0], c1[1], c1[2], c1[3]}};
+    vertices[1] = (vertex_t){{+1, -1, 0}, {c1[0], c1[1], c1[2], c1[3]}};
+    vertices[2] = (vertex_t){{+1, +1, 0}, {c2[0], c2[1], c2[2], c2[3]}};
+    vertices[3] = (vertex_t){{-1, +1, 0}, {c2[0], c2[1], c2[2], c2[3]}};
+
+    prog = get_prog(BACKGROUND_VSHADER, BACKGROUND_FSHADER, NULL);
+    GL(glUseProgram(prog->prog));
+
+    GL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_index_buffer));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, g_background_array_buffer));
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),
+                    vertices, GL_DYNAMIC_DRAW));
+
+    GL(glEnableVertexAttribArray(0));
+    GL(glVertexAttribPointer(0, 3, GL_BYTE, false, sizeof(vertex_t),
+                             (void*)(intptr_t)offsetof(vertex_t, pos)));
+    GL(glEnableVertexAttribArray(2));
+    GL(glVertexAttribPointer(2, 4, GL_FLOAT, false, sizeof(vertex_t),
+                             (void*)(intptr_t)offsetof(vertex_t, color)));
+    GL(glDepthMask(false));
+    GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0));
+    GL(glDepthMask(true));
+}
+
+void render_submit(renderer_t *rend, const int rect[4],
+                   const uint8_t clear_color[4])
+{
+    render_item_t *item, *tmp;
+    float shadow_mvp[4][4];
+    const float s = rend->scale;
+    bool shadow = rend->settings.shadow &&
+        !(rend->settings.effects & (EFFECT_RENDER_POS | EFFECT_SHADOW_MAP));
+
+    if (shadow) {
+        GL(glDisable(GL_SCISSOR_TEST));
+        render_shadow_map(rend, shadow_mvp);
+    }
+
+    GL(glBindFramebuffer(GL_FRAMEBUFFER, rend->fbo));
+    GL(glEnable(GL_SCISSOR_TEST));
+    GL(glViewport(rect[0] * s, rect[1] * s, rect[2] * s, rect[3] * s));
+    GL(glScissor(rect[0] * s, rect[1] * s, rect[2] * s, rect[3] * s));
+    GL(glLineWidth(rend->scale));
+    if (clear_color) render_background(rend, clear_color);
+
+    DL_SORT(rend->items, item_sort_cmp);
+    DL_FOREACH_SAFE(rend->items, item, tmp) {
+        switch (item->type) {
+        case ITEM_MESH:
+            render_mesh_(rend, item->mesh, item->effects, shadow_mvp);
+            DL_DELETE(rend->items, item);
+            mesh_delete(item->mesh);
+            break;
+        case ITEM_MODEL3D:
+            render_model_item(rend, item);
+            DL_DELETE(rend->items, item);
+            break;
+        case ITEM_GRID:
+            render_grid_item(rend, item);
+            DL_DELETE(rend->items, item);
+            break;
+        }
+        texture_delete(item->tex);
+        free(item);
+    }
+    assert(rend->items == NULL);
+}
+
+int render_get_default_settings(int i, char **name, render_settings_t *out)
+{
+    if (!out) return 6;
+
+    *out = (render_settings_t) {
+        .border_shadow = 0.4,
+        .ambient = 0.3,
+        .diffuse = 0.5,
+        .specular = 0.4,
+        .shininess = 2.0,
+        .smoothness = 0.0,
+        .effects = EFFECT_BORDERS,
+        .shadow = 0.3,
+    };
+    switch (i) {
+        case 0:
+            if (name) *name = "Borders";
+            break;
+        case 1:
+            if (name) *name = "Cubes";
+            out->effects = EFFECT_BORDERS_ALL;
+            break;
+        case 2:
+            if (name) *name = "Plain";
+            out->effects = 0;
+            break;
+        case 3:
+            if (name) *name = "Smooth";
+            out->effects = 0;
+            out->smoothness = 1;
+            out->border_shadow = 0;
+            out->shadow = 0;
+            break;
+        case 4:
+            if (name) *name = "Half smooth";
+            out->smoothness = 0.2;
+            out->effects = EFFECT_BORDERS_ALL;
+            break;
+        case 5:
+            if (name) *name = "Marching";
+            out->smoothness = 1.0;
+            out->effects = EFFECT_MARCHING_CUBES | EFFECT_FLAT;
+            break;
+    }
+    return 5;
+}
+
+
+// #### All the shaders code #######
+
+/*
+ * I followed those name conventions.  All the vectors are expressed in eye
+ * coordinates.
+ *
+ *         reflection         light source
+ *
+ *               r              s
+ *                 ^         ^
+ *                  \   n   /
+ *  eye              \  ^  /
+ *     v  <....       \ | /
+ *              -----__\|/
+ *                  ----+----
+ *
+ *
+ */
+
+static const char *VSHADER =
+    "                                                                   \n"
+    "attribute vec3 a_pos;                                              \n"
+    "attribute vec3 a_normal;                                           \n"
+    "attribute vec4 a_color;                                            \n"
+    "attribute vec2 a_bshadow_uv;                                       \n"
+    "attribute vec2 a_bump_uv;   // bump tex base coordinates [0,255]   \n"
+    "attribute vec2 a_uv;        // uv coordinates [0,1]                \n"
+    "uniform   mat4 u_model;                                            \n"
+    "uniform   mat4 u_view;                                             \n"
+    "uniform   mat4 u_proj;                                             \n"
+    "uniform   mat4 u_shadow_mvp;                                       \n"
+    "uniform   float u_pos_scale;                                       \n"
+    "                                                                   \n"
+    "varying   vec3 v_pos;                                              \n"
+    "varying   vec4 v_color;                                            \n"
+    "varying   vec2 v_bshadow_uv;                                       \n"
+    "varying   vec2 v_uv;                                               \n"
+    "varying   vec2 v_bump_uv;                                          \n"
+    "varying   vec3 v_normal;                                           \n"
+    "varying   vec4 v_shadow_coord;  // Used for shadow mapping.        \n"
+    "                                                                   \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    v_normal = a_normal;                                           \n"
+    "    v_color = a_color;                                             \n"
+    "    v_bshadow_uv = (a_bshadow_uv + 0.5) /                          \n"
+    "                          (16.0 * VOXEL_TEXTURE_SIZE);             \n"
+    "    v_pos = a_pos * u_pos_scale;                                   \n"
+    "    v_uv = a_uv;                                                   \n"
+    "    v_bump_uv = a_bump_uv;                                         \n"
+    "    gl_Position = u_proj * u_view * u_model * vec4(v_pos, 1.0);    \n"
+    "    v_shadow_coord = (u_shadow_mvp * u_model * vec4(v_pos, 1.0));  \n"
+    "}                                                                  \n"
+;
+
+static const char *FSHADER =
+    "                                                                   \n"
+    "#ifdef GL_ES                                                       \n"
+    "precision highp float;                                             \n"
+    "#endif                                                             \n"
+    "                                                                   \n"
+    "uniform   mat4 u_model;                                            \n"
+    "uniform   mat4 u_view;                                             \n"
+    "uniform   mat4 u_proj;                                             \n"
+    "                                                                   \n"
+    "// Light parameters                                                \n"
+    "uniform   vec3 u_l_dir;                                            \n"
+    "uniform  float u_l_int;                                            \n"
+    "// Material parameters                                             \n"
+    "uniform  float u_m_amb; // Ambient light coef.                     \n"
+    "uniform  float u_m_dif; // Diffuse light coef.                     \n"
+    "uniform  float u_m_spe; // Specular light coef.                    \n"
+    "uniform  float u_m_shi; // Specular light shininess.               \n"
+    "uniform  float u_m_smo; // Smoothness.                             \n"
+    "                                                                   \n"
+    "uniform sampler2D u_bshadow_tex;                                   \n"
+    "uniform sampler2D u_bump_tex;                                      \n"
+    "uniform float     u_bshadow;                                       \n"
+    "uniform sampler2D u_shadow_tex;                                    \n"
+    "uniform float     u_shadow_k;                                      \n"
+    "                                                                   \n"
+    "varying lowp vec3 v_pos;                                           \n"
+    "varying lowp vec4 v_color;                                         \n"
+    "varying lowp vec2 v_uv;                                            \n"
+    "varying lowp vec2 v_bshadow_uv;                                    \n"
+    "varying lowp vec2 v_bump_uv;                                       \n"
+    "varying lowp vec3 v_normal;                                        \n"
+    "varying vec4 v_shadow_coord;                                       \n"
+    "                                                                   \n"
+    "vec2 uv, bump_uv;                                                  \n"
+    "vec3 n, s, r, v, bump;                                             \n"
+    "float s_dot_n;                                                     \n"
+    "float l_amb, l_dif, l_spe;                                         \n"
+    "float bshadow;                                                     \n"
+    "float visibility;                                                  \n"
+    "vec2 PS[4]; // Poisson offsets used for the shadow map.            \n"
+    "int i;                                                             \n"
+    "                                                                   \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    // clamp uv so to prevent overflow with multismapling.         \n"
+    "    uv = clamp(v_uv, 0.0, 1.0);                                    \n"
+    "    s = u_l_dir;                                                   \n"
+    "    n = normalize((u_view * u_model * vec4(v_normal, 0.0)).xyz);   \n"
+    "    bump_uv = (v_bump_uv + 0.5 + uv * 15.0) / 256.0;               \n"
+    "    bump = texture2D(u_bump_tex, bump_uv).xyz - 0.5;               \n"
+    "    bump = normalize((u_view * u_model * vec4(bump, 0.0)).xyz);    \n"
+    "    n = mix(bump, n, u_m_smo);                                     \n"
+    "    s_dot_n = dot(s, n);                                           \n"
+    "    l_dif = u_m_dif * max(0.0, s_dot_n);                           \n"
+    "    l_amb = u_m_amb;                                               \n"
+    "                                                                   \n"
+    "    // Specular light.                                             \n"
+    "    v = normalize(-(u_view * u_model * vec4(v_pos, 1.0)).xyz);     \n"
+    "    r = reflect(-s, n);                                            \n"
+    "    l_spe = u_m_spe * pow(max(dot(r, v), 0.0), u_m_shi);           \n"
+    "    l_spe = s_dot_n > 0.0 ? l_spe : 0.0;                           \n"
+    "                                                                   \n"
+    "    bshadow = texture2D(u_bshadow_tex, v_bshadow_uv).r;            \n"
+    "    bshadow = sqrt(bshadow);                                       \n"
+    "    bshadow = mix(1.0, bshadow, u_bshadow);                        \n"
+    "    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);                       \n"
+    "    gl_FragColor.rgb += (l_dif + l_amb) * u_l_int * v_color.rgb;   \n"
+    "    gl_FragColor.rgb += l_spe * u_l_int * vec3(1.0);               \n"
+    "    gl_FragColor.rgb *= bshadow;                                   \n"
+    "                                                                   \n"
+    "    // Shadow map.                                                 \n"
+    "    #ifdef SHADOW                                                  \n"
+    "    visibility = 1.0;                                              \n"
+    "    vec4 shadow_coord = v_shadow_coord / v_shadow_coord.w;         \n"
+    "    float bias = 0.005 * tan(acos(clamp(s_dot_n, 0.0, 1.0)));      \n"
+    "    bias = clamp(bias, 0.0, 0.015);                                \n"
+    "    shadow_coord.z -= bias;                                        \n"
+    "    PS[0] = vec2(-0.94201624, -0.39906216) / 1024.0;               \n"
+    "    PS[1] = vec2(+0.94558609, -0.76890725) / 1024.0;               \n"
+    "    PS[2] = vec2(-0.09418410, -0.92938870) / 1024.0;               \n"
+    "    PS[3] = vec2(+0.34495938, +0.29387760) / 1024.0;               \n"
+    "    for (i = 0; i < 4; i++)                                        \n"
+    "        if (texture2D(u_shadow_tex, v_shadow_coord.xy +            \n"
+    "           PS[i]).z < shadow_coord.z) visibility -= 0.2;           \n"
+    "    if (s_dot_n <= 0.0) visibility = 0.5;                          \n"
+    "    gl_FragColor.rgb *= mix(1.0, visibility, u_shadow_k);          \n"
+    "    #endif                                                         \n"
+    "                                                                   \n"
+    "}                                                                  \n"
+;
+
+static const char *POS_DATA_VSHADER =
+    "                                                                   \n"
+    "attribute vec3 a_pos;                                              \n"
+    "attribute vec2 a_pos_data;                                         \n"
+    "uniform   mat4 u_model;                                            \n"
+    "uniform   mat4 u_view;                                             \n"
+    "uniform   mat4 u_proj;                                             \n"
+    "varying   vec2 v_pos_data;                                         \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    vec3 pos = a_pos;                                              \n"
+    "    gl_Position = u_proj * u_view * u_model * vec4(pos, 1.0);      \n"
+    "    v_pos_data = a_pos_data;                                       \n"
+    "}                                                                  \n"
+;
+
+static const char *POS_DATA_FSHADER =
+    "                                                                 \n"
+    "#ifdef GL_ES                                                     \n"
+    "precision highp float;                                           \n"
+    "#endif                                                           \n"
+    "                                                                 \n"
+    "varying lowp vec2 v_pos_data;                                    \n"
+    "uniform lowp vec2 u_block_id;                                    \n"
+    "                                                                 \n"
+    "void main()                                                      \n"
+    "{                                                                \n"
+    "    gl_FragColor.rg = u_block_id;                                \n"
+    "    gl_FragColor.ba = v_pos_data;                                \n"
+    "}                                                                \n"
+;
+
+static const char *SHADOW_MAP_VSHADER =
+    "                                                                   \n"
+    "attribute vec3 a_pos;                                              \n"
+    "uniform   mat4 u_model;                                            \n"
+    "uniform   mat4 u_view;                                             \n"
+    "uniform   mat4 u_proj;                                             \n"
+    "uniform   float u_pos_scale;                                       \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    gl_Position = u_proj * u_view * u_model *                      \n"
+    "                   vec4(a_pos * u_pos_scale, 1.0);                 \n"
+    "}                                                                  \n"
+;
+
+static const char *SHADOW_MAP_FSHADER =
+    "                                                                   \n"
+    "#ifdef GL_ES                                                       \n"
+    "precision highp float;                                             \n"
+    "#endif                                                             \n"
+    "                                                                   \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "}                                                                  \n"
+;
+
+static const char *BACKGROUND_VSHADER =
+    "                                                                   \n"
+    "attribute vec3 a_pos;                                              \n"
+    "attribute vec4 a_color;                                            \n"
+    "                                                                   \n"
+    "varying vec4 v_color;                                              \n"
+    "                                                                   \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    gl_Position = vec4(a_pos, 1.0);                                \n"
+    "    v_color = a_color;                                             \n"
+    "}                                                                  \n"
+;
+
+static const char *BACKGROUND_FSHADER =
+    "                                                                   \n"
+    "#ifdef GL_ES                                                       \n"
+    "precision mediump float;                                           \n"
+    "#endif                                                             \n"
+    "                                                                   \n"
+    "varying vec4 v_color;                                              \n"
+    "                                                                   \n"
+    "void main()                                                        \n"
+    "{                                                                  \n"
+    "    gl_FragColor = v_color;                                        \n"
+    "}                                                                  \n"
+;
