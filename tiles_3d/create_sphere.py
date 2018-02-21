@@ -79,7 +79,8 @@ def get_arc_consistency_slice(central_tile_index, tiles):
 def f(a):
     central_tile_index, tiles = a
     # return get_sphere_slice(central_tile_index, tiles)
-    return get_arc_consistency_slice(central_tile_index, tiles)
+    # return get_arc_consistency_slice(central_tile_index, tiles)
+    return get_sphere_slice(central_tile_index, tiles) * get_arc_consistency_slice(central_tile_index, tiles)
 
 # def create_spheres(tiles):
 #     p = Pool(7)
