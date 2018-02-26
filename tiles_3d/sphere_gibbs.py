@@ -39,12 +39,12 @@ def spherehood(i,j, l):
 def get_entropy(probmap, decided):
 
     decided_deep = decided.reshape(decided.shape[0], decided.shape[1], -1, 1)
-    # print probmap.shape
-    # print decided.shape
-    entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0).astype(np.int32) * (decided_deep == 0)\
-            .reshape(decided.shape[0],decided.shape[1],decided.shape[2],1), axis = -1))
+    # entropy = np.exp(-np.sum((probmap * np.exp(probmap)) * (probmap > 0).astype(np.int32) * (decided_deep == 0)\
+    #         .reshape(decided.shape[0],decided.shape[1],decided.shape[2],1), axis = -1))
+    entropy = np.sum((probmap > 0).astype(np.int32) * (decided_deep == 0)\
+            .reshape(decided.shape[0],decided.shape[1],decided.shape[2],1), axis = -1)
 
-    entropy += (decided == 1) * 2#np.max(entropy)
+    entropy += (decided == 1) * 200000#np.max(entropy)
     return entropy
 
 # @profile
@@ -211,7 +211,7 @@ def normalize_probmap(probmap):
 
 # print "===="
 tiles, tile_properties, tile_priors = get_tiles()
-# random.shuffle(tiles)
+print tile_priors
 
 
 tile_index_to_prior = np.ones(len(tiles)) / len(tiles)
@@ -229,9 +229,9 @@ print time.time() - t1, "to build tiles"
 
 def get_air_index():
     for i, props in enumerate(tile_properties):
-        if props.name =="air":
+        if props.name[:3] =="air":
             return i
-    assert False
+    assert False, "you must have a tile namex air*.vox"
 
 
 
@@ -265,7 +265,7 @@ def report_on_probmap_location(i,j):
 
 # @profile
 def place_a_tile():
-    entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
+    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00)), entropy.shape)
     i,j,l= entropy_argmin
     # print i
 
@@ -312,16 +312,16 @@ def generate_world():
             print world[:,:,slicenum]
     print "=======START GENERATION=========="
     # state_report()
-
-    # air_index = get_air_index()
-    # for i in range(WORLD_WIDTH):
-    #     for j in range(WORLD_WIDTH):
-    #         for l in range(WORLD_WIDTH):
-    #             if (i == 0 or i == WORLD_WIDTH-1
-    #                 or j == 0 or j == WORLD_WIDTH-1
-    #                 or l == 0 or l == WORLD_WIDTH-1):
-    #                     if random.random() < .2:
-    #                         place(i, j, l, air_index)
+    if SURROUND_BY_AIR:
+        air_index = get_air_index()
+        for i in range(WORLD_WIDTH):
+            for j in range(WORLD_WIDTH):
+                for l in range(WORLD_WIDTH):
+                    if (i == 0 or i == WORLD_WIDTH-1
+                        or j == 0 or j == WORLD_WIDTH-1
+                        or l == 0 or l == WORLD_WIDTH-1):
+                            if random.random() < 1:
+                                place(i, j, l, air_index)
 
 
     # place(1,1,1,0)
