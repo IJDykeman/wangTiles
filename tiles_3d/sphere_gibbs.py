@@ -8,6 +8,8 @@ from display import *
 from constants import *
 import random
 
+from pyvox.models import Vox
+from pyvox.writer import VoxWriter
 
 # np.random.seed(0)
 fixup_budget = 100
@@ -265,7 +267,7 @@ def report_on_probmap_location(i,j):
 
 # @profile
 def place_a_tile():
-    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00)), entropy.shape)
+    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
     i,j,l= entropy_argmin
     # print i
 
@@ -345,7 +347,7 @@ def generate_world():
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
         if step % 1000 == 0:
-            print str(100.0*(step)/np.prod(decided.shape)) + "% done"
+            print str(100*(step)/np.prod(decided.shape)) + "% done"
         place_a_tile()
         # print "entropy"
         # print entropy
@@ -362,88 +364,27 @@ generate_world()
 
 print world
 
-import minecraft
 
 
 
 
 worldchars = np.zeros([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
 stride = TILE_WIDTH-1
-for i in range(1, WORLD_WIDTH-1):
-    for j in range(1, WORLD_WIDTH-1):
-        for l in range(1, WORLD_WIDTH-1):
-            if not tile_properties[world[i,j,l]].is_air:
+for i in range(0, WORLD_WIDTH):
+    for j in range(0, WORLD_WIDTH):
+        for l in range(0, WORLD_WIDTH):
+            if not tile_properties[world[i,WORLD_WIDTH-j-1,l]].is_air:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
-                     = tiles[world[i,j,l]]
+                     = tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]
             else:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] = 0
 
-solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('#'))))
-solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('@'))))
-solids += zip(*map(lambda x: list(x), np.where(worldchars == ord('1'))))
-# solids = zip(*map(lambda x: list(x), np.where(worldchars == ord('.'))))
-# solids += zip(*map(lambda x: list(x), np.where(worldchars == ord(','))))
-# solids = map(lambda x: ((x[0], x[1], x[2] , 1 if is_valid(x[0] / stride, x[1] / stride, x[2] / stride) else 2)), solids)
-solids = map(lambda x: ((x[0], x[1], x[2] , 1)), solids)
-
-# minecraft.main(solid = solids)
 
 print "writing .vox output"
-from pyvox.models import Vox
-from pyvox.writer import VoxWriter
+
 a = (worldchars).astype(np.int32)
 print a
 vox = Vox.from_dense(a)
 VoxWriter('test.vox', vox).write()
 
 
-
-# print world[0]
-# @profile
-# def remove_and_redo(k):
-#     for i in range(WORLD_WIDTH):
-#         for j in range(WORLD_WIDTH):
-#                 if decided[i, j] == 1:
-#                     if len(get_all_valid(i,j)) == 0:
-#                         for i1 in range(i-k, i+k):
-#                             for j1 in range(j-k, j+k):
-#                                 if in_world(i1, j1):
-#                                         unplace(i1, j1)
-
-
-    # while np.prod(decided.shape) - np.sum(decided) > 0:
-    #     place_a_tile()
-
-# draw_world(world, tiles, mask = decided)
-
-
-# remove_and_redo(4)
-# remove_and_redo(10)
-
-
-# # draw_world(world, tiles, mask = decided)
-
-# remove_and_redo(10)
-
-# # draw_world(world, tiles, mask = decided)
-
-# remove_and_redo(10)
-
-# # draw_world(world, tiles, mask = decided)
-
-# remove_and_redo(2)
-# remove_and_redo(1)
-# print '=' * WORLD_WIDTH * 3
-# draw_world(world, tiles, mask = decided)
-
-# k=1
-# for i in range(WORLD_WIDTH):
-#     for j in range(WORLD_WIDTH):
-#             if decided[i, j] == 1:
-#                 if is_valid(i, j) == False:
-#                     print i,j
-
-#                     for i1 in range(i-k, i+k):
-#                         for j1 in range(j-k, j+k):
-#                             if in_world(i1, j1):
-#                                     unplace(i1, j1)

@@ -7,7 +7,8 @@ from os.path import isfile, join
 from tile_properties import TileProperties
 import re
 
-def get_tile(path):
+def get_tile(path, v=False, ignore_rotations=False):
+    # print path
     solids, material_ids = import_vox(path)
     # print path
     # print solids
@@ -18,14 +19,14 @@ def get_tile(path):
     prior = 1.0
     path = path.replace(":","")
     p = re.compile("prior:?\d*\.?\d*")
-    print path
+    if v: print path
     if len(p.findall(path)) > 0:
         prior = float(p.findall(path)[0].split("prior")[1])
-        print "  ", prior
+        if v: print "  ", prior
     result = [tile]
     tile_properties = [TileProperties(is_air = 'air' in path.lower(), name = path.split("/")[-1].split(".vox")[0])]
     priors = [prior]
-    if not "norotation" in path:
+    if not "norotation" in path and not ignore_rotations:
         axes = (0,2)
         # if np.any(tile != np.rot90(tile, axes=axes)):
             
@@ -38,7 +39,7 @@ def get_tile(path):
         #     priors[0] *= 4.0
     return result, tile_properties, priors
 
-def get_tiles(v = False):
+def get_tiles(v = False, ignore_rotations=False):
 
 
     
@@ -49,7 +50,7 @@ def get_tiles(v = False):
     priors = []
     for f in onlyfiles:
         try:
-            new_tiles, new_tile_properties, new_priors = get_tile(f)
+            new_tiles, new_tile_properties, new_priors = get_tile(f, v = v, ignore_rotations=ignore_rotations)
             result.extend(new_tiles)
             tile_properties.extend(new_tile_properties)
             priors.extend(new_priors)

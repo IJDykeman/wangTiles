@@ -16,7 +16,7 @@ def test_bfs():
         grid[item] = i
     print grid
 
-def get_sphere_slice(central_tile_index, tiles):
+def get_bfs_sphere_slice(central_tile_index, tiles):
     sphere = np.zeros([SPHERE_WIDTH, SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
     # print "CENTRAL TILE", central_tile_index
     visited = np.zeros([SPHERE_WIDTH, SPHERE_WIDTH, SPHERE_WIDTH]) 
@@ -48,6 +48,38 @@ def get_sphere_slice(central_tile_index, tiles):
 
     return sphere
 
+
+def get_ac3_arc_consistency_slice(central_tile_index, tiles):
+    worklist = np.ones([SPHERE_WIDTH, SPHERE_WIDTH, SPHERE_WIDTH])
+    sphere = np.ones([SPHERE_WIDTH, SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
+    sphere[SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, :] = 0
+    sphere[SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, central_tile_index] = 1
+
+    while True:
+        old_sphere = sphere.copy()
+        # for query_i in range(SPHERE_WIDTH):
+        #     for query_j in range(SPHERE_WIDTH):
+        #         for query_k in range(SPHERE_WIDTH):
+        work_indices = zip(*np.where(worklist==1))
+        for indices in work_indices:
+            query_i, query_j, query_k = indices
+            # print indices
+            for neighbor_i, neighbor_j, neighbor_k in neighbors(query_i, query_j, query_k, width = SPHERE_WIDTH):
+                    prob_from = sphere[neighbor_i, neighbor_j, neighbor_k, :]
+                    trans = transition_matrix(neighbor_i - query_i, neighbor_j - query_j, neighbor_k - query_k)
+                    assert np.max(trans) <= 1
+                    prob_to = trans.dot(prob_from)
+                    prob_to = (prob_to > 0).astype(np.int32)
+                    assert np.max(prob_to) <= 1
+
+                    sphere[query_i,query_j, query_k, :] *= prob_to
+            worklist = np.any(old_sphere != sphere, axis=-1)
+            # print worklist.shape
+        if np.all(sphere == old_sphere):
+            break
+    # print "created sphere", central_tile_index
+    return sphere
+
 def get_arc_consistency_slice(central_tile_index, tiles):
     sphere = np.ones([SPHERE_WIDTH, SPHERE_WIDTH, SPHERE_WIDTH, len(tiles)])
     sphere[SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, SPHERE_WIDTH / 2, :] = 0
@@ -60,7 +92,7 @@ def get_arc_consistency_slice(central_tile_index, tiles):
                 for query_k in range(SPHERE_WIDTH):
 
                     for neighbor_i, neighbor_j, neighbor_k in neighbors(query_i, query_j, query_k, width = SPHERE_WIDTH):
-                            prob_from = sphere[neighbor_i, neighbor_j, :]
+                            prob_from = sphere[neighbor_i, neighbor_j, neighbor_k, :]
                             trans = transition_matrix(neighbor_i - query_i, neighbor_j - query_j, neighbor_k - query_k)
                             assert np.max(trans) <= 1
                             prob_to = trans.dot(prob_from)
@@ -78,9 +110,9 @@ def get_arc_consistency_slice(central_tile_index, tiles):
 
 def f(a):
     central_tile_index, tiles = a
-    # return get_sphere_slice(central_tile_index, tiles)
+    # return get_bfs_sphere_slice(central_tile_index, tiles)
     return get_arc_consistency_slice(central_tile_index, tiles)
-    # return get_sphere_slice(central_tile_index, tiles) * get_arc_consistency_slice(central_tile_index, tiles)
+    # return get_bfs_sphere_slice(central_tile_index, tiles) * get_arc_consistency_slice(central_tile_index, tiles)
 
 # def create_spheres(tiles):
 #     p = Pool(7)
@@ -91,7 +123,8 @@ def f(a):
 def create_spheres(tiles):
     spheres = []
     for i in range(len(tiles)):
-        spheres.append(get_sphere_slice(i, tiles))
+        # assert np.all(get_ac3_arc_consistency_slice(i, tiles) == get_arc_consistency_slice(i, tiles))
+        spheres.append(get_arc_consistency_slice(i, tiles))
         # print "made sphere", i
     return np.array(spheres)
 
