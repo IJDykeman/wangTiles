@@ -90,15 +90,7 @@ def is_valid_around(i, j, l):
 def place(i, j, l, tile_index):
     
     global probmap, fixup_budget
-    # print probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-    #               max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-    #               max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)].shape
 
-    # print spheres[tile_index,
-    #                max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-    #                max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-    #                max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)].shape
-    # print spheres.shape
     sphere = spheres[tile_index]#.transpose(2,1,0,3)
 
     old_p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
@@ -115,29 +107,31 @@ def place(i, j, l, tile_index):
 
     # probmap = normalize_probmap(probmap)
     
-    if not is_valid_around(i, j, l):
-        probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)] = old_p
-        if fixup_budget > 0:
-            fixup_budget -= 1
-            print "fixing up",i,j,l
-            return 
+    if ALLOW_FIXUP:
+        if not is_valid_around(i, j, l):
+            probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
+                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
+                max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)] = old_p
+            if fixup_budget > 0:
+                fixup_budget -= 1
+                print "fixing up",i,j,l
+                return 
     normalize_probmap_around(i, j, l)
     update_entropy_around(i, j, l)
 
     decided[i,j,l] = 1
     world[i,j, l] = tile_index
-    for i1, j1, l1 in neighbors(i,j,l):
-        if in_world(i1, j1, l1):
-            surrounded = True
-            for i2, j2, l2 in neighbors(i1,j1, l1):
-                if in_world(i2, j2, l2):
-                    if decided[i2, j2, l2] == 0:
-                        surrounded = False
-                        break
-            if surrounded:
-                forget(i1, j1, l1)
+    if FORGET_SURROUNDED:
+        for i1, j1, l1 in neighbors(i,j,l):
+            if in_world(i1, j1, l1):
+                surrounded = True
+                for i2, j2, l2 in neighbors(i1,j1, l1):
+                    if in_world(i2, j2, l2):
+                        if decided[i2, j2, l2] == 0:
+                            surrounded = False
+                            break
+                if surrounded:
+                    forget(i1, j1, l1)
 
 def forget(i, j, l):
     global probmap
@@ -210,6 +204,15 @@ def normalize_probmap(probmap):
     probmap /= s.reshape(WORLD_WIDTH, WORLD_WIDTH, WORLD_WIDTH, 1)
     return probmap
 
+def report_on_probmap_location(i,j):
+    print "=================================="
+    print "reporting information about probmap at", i, j
+    for tile, p in zip(tiles, probmap[i,j]):
+        print tile
+        print p
+        print
+    print "=================================="
+
 
 # print "===="
 tiles, tile_properties, tile_priors = get_tiles()
@@ -237,37 +240,14 @@ def get_air_index():
 
 
 
-world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
-probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH, len(tiles))).astype(np.float32)
-probmap *= np.array(tile_priors).reshape([1,1,1,-1])
-
-
-
-probmap = normalize_probmap(probmap)
-decided = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
-entropy = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)) * 1000000
-
-
-all_coords = []
-
-for i in range(world.shape[0]):
-    for j in range(world.shape[1]):
-        all_coords.append((i,j))
-
-def report_on_probmap_location(i,j):
-    print "=================================="
-    print "reporting information about probmap at", i, j
-    for tile, p in zip(tiles, probmap[i,j]):
-        print tile
-        print p
-        print
-    print "=================================="
 
 
 
 # @profile
 def place_a_tile():
-    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
+    # entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
+    entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
+
     i,j,l= entropy_argmin
     # print i
 
@@ -296,23 +276,23 @@ def generate_world():
     # report_on_probmap_location(WORLD_WIDTH / 2,WORLD_WIDTH / 2 - 1)
     # quit()
 
-    def state_report():
-        print "entropy", entropy.shape
-        print entropy[:,:,0]
-        print entropy[:,:,1]
-        print entropy[:,:,2]
-        print "probs", probmap.shape
-        print probmap[:,:,:,0]
-        print
-        print probmap[:,:,:,1]
-        print "decided", decided.shape
-        print decided[:,:,0]
-        print decided[:,:,1]
-        print decided[:,:,2]
-        print "world", world.shape
-        for slicenum in range(world.shape[-1]):
-            print world[:,:,slicenum]
-    print "=======START GENERATION=========="
+    # def state_report():
+    #     print "entropy", entropy.shape
+    #     print entropy[:,:,0]
+    #     print entropy[:,:,1]
+    #     print entropy[:,:,2]
+    #     print "probs", probmap.shape
+    #     print probmap[:,:,:,0]
+    #     print
+    #     print probmap[:,:,:,1]
+    #     print "decided", decided.shape
+    #     print decided[:,:,0]
+    #     print decided[:,:,1]
+    #     print decided[:,:,2]
+    #     print "world", world.shape
+    #     for slicenum in range(world.shape[-1]):
+    #         print world[:,:,slicenum]
+    # print "=======START GENERATION=========="
     # state_report()
     if SURROUND_BY_AIR:
         air_index = get_air_index()
@@ -326,43 +306,37 @@ def generate_world():
                                 place(i, j, l, air_index)
 
 
-    # place(1,1,1,0)
-    # print "placing first tile"
-    # state_report()
-    # quit()
-
-    # print "placing some tiles..."
-    # place_a_tile()
-    # state_report()
-    # print "placing some tiles..."
-    # place_a_tile()
-    # state_report()
-    # print "placing some tiles..."
-    # for _ in range(3):
-    #     place_a_tile()
-    # state_report()
-    
-    # return
     step=0
     while np.prod(decided.shape) - np.sum(decided) > 0:
         step += 1
-        if step % 1000 == 0:
-            print str(100*(step)/np.prod(decided.shape)) + "% done"
+        # if step % 1000 == 0:
+            # print str(100*(step)/np.prod(decided.shape)) + "% done"
         place_a_tile()
-        # print "entropy"
-        # print entropy
-        # print "probs"
-        # print probmap[:,:,:,0]
-        # print probmap[:,:,:,1]
+    # print "generation complete."
+for i in range(50):
+    
+    world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
+    probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH, len(tiles))).astype(np.float32)
+    probmap *= np.array(tile_priors).reshape([1,1,1,-1])
+    probmap = normalize_probmap(probmap)
+    decided = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
+    entropy = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)) * 1000000
+    t1 = time.time()
+    generate_world()
+    t2 = time.time()
+    print t2-t1, "seconds"
+    invalid_locations = 0
 
-        # if step % (np.prod(world.shape) / 4) ==0:
-            # draw_world(world, tiles, mask = decided)
-            # time.sleep(.3)
-    # state_report()
-    print "generation complete."
-generate_world()
+    for i in range(0, WORLD_WIDTH):
+        for j in range(0, WORLD_WIDTH):
+            for l in range(0, WORLD_WIDTH):
+                if not is_valid(i,j,l):
+                    invalid_locations += 1
 
-print world
+    # print invalid_locations, "invalid locations"
+    print invalid_locations, "locations invalid"
+
+    # print world
 
 
 
@@ -383,8 +357,7 @@ for i in range(0, WORLD_WIDTH):
 print "writing .vox output"
 
 a = (worldchars).astype(np.int32)
-print a
+# print a
 vox = Vox.from_dense(a)
 VoxWriter('test.vox', vox).write()
-
 
