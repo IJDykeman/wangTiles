@@ -267,7 +267,7 @@ def report_on_probmap_location(i,j):
 
 # @profile
 def place_a_tile():
-    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
+    entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .0000)), entropy.shape)
     i,j,l= entropy_argmin
     # print i
 
