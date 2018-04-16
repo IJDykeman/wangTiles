@@ -44,7 +44,7 @@ def get_tiles(v = False, ignore_rotations=False):
 
     
 
-    onlyfiles = [join(VOX_PATH, f) for f in listdir(VOX_PATH) if isfile(join(VOX_PATH, f))]
+    onlyfiles = sorted([join(VOX_PATH, f) for f in listdir(VOX_PATH) if isfile(join(VOX_PATH, f))])
     result = []
     tile_properties = []
     priors = []

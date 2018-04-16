@@ -7,7 +7,7 @@ from pyvox.models import Vox
 from pyvox.writer import VoxWriter
 
 
-tiles, tile_properties, tile_priors = get_tiles(v=False, ignore_rotations=True)
+tiles, tile_properties, tile_priors = get_tiles(v=True, ignore_rotations=True)
 
 # for t in tile_properties:
 #   print t.is_air
@@ -43,6 +43,7 @@ for i in range(0, world_width-0):
     for j in range(0, world_width-0):
         for l in range(0, world_width-0):
             if not tile_properties[world[i,j,l]].is_air:
+            # if not world[i,j,l] != 0:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
                      = tiles[world[i,j,l]]
             else:

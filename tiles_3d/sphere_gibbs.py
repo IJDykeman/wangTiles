@@ -245,8 +245,10 @@ def get_air_index():
 
 # @profile
 def place_a_tile():
-    # entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
-    entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
+    if RANDOM_TIE_BREAKING:
+        entropy_argmin = np.unravel_index(np.argmin(entropy  + np.random.normal(size=entropy.shape, scale = .00001)), entropy.shape)
+    else:
+        entropy_argmin = np.unravel_index(np.argmin(entropy), entropy.shape)
 
     i,j,l= entropy_argmin
     # print i
@@ -313,7 +315,7 @@ def generate_world():
             # print str(100*(step)/np.prod(decided.shape)) + "% done"
         place_a_tile()
     # print "generation complete."
-for i in range(50):
+for i in range(1):
     
     world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
     probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH, len(tiles))).astype(np.float32)
@@ -347,17 +349,20 @@ stride = TILE_WIDTH-1
 for i in range(0, WORLD_WIDTH):
     for j in range(0, WORLD_WIDTH):
         for l in range(0, WORLD_WIDTH):
-            if not tile_properties[world[i,WORLD_WIDTH-j-1,l]].is_air:
+            if not is_valid(i,WORLD_WIDTH-j-1,l):
+                worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH]\
+                     = (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]>0) * (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:] + 50)%255
+
+            elif not tile_properties[world[i,WORLD_WIDTH-j-1,l]].is_air:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
                      = tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]
             else:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] = 0
 
 
-print "writing .vox output"
-
 a = (worldchars).astype(np.int32)
-# print a
+# print np.mean(a)
 vox = Vox.from_dense(a)
 VoxWriter('test.vox', vox).write()
+print ".vox output written"
 
