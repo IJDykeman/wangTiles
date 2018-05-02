@@ -315,7 +315,10 @@ def generate_world():
             # print str(100*(step)/np.prod(decided.shape)) + "% done"
         place_a_tile()
     # print "generation complete."
-for i in range(1):
+
+N_TRIALS = 10
+invalid_locations_record = []
+for i in range(N_TRIALS):
     
     world = np.zeros((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH)).astype(np.int32)
     probmap = np.ones((WORLD_WIDTH,WORLD_WIDTH, WORLD_WIDTH, len(tiles))).astype(np.float32)
@@ -337,18 +340,20 @@ for i in range(1):
 
     # print invalid_locations, "invalid locations"
     print invalid_locations, "locations invalid"
-
+    invalid_locations_record.append(invalid_locations)
     # print world
 
 
+print "mean locations invalid", np.mean(invalid_locations_record)
 
 
 
 worldchars = np.zeros([WORLD_WIDTH*TILE_WIDTH]*3).astype(np.int32)
 stride = TILE_WIDTH-1
-for i in range(0, WORLD_WIDTH):
-    for j in range(0, WORLD_WIDTH):
-        for l in range(0, WORLD_WIDTH):
+REMOVE_EDGE_WIDTH = 1
+for i in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
+    for j in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
+        for l in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
             if not is_valid(i,WORLD_WIDTH-j-1,l):
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH]\
                      = (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]>0) * (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:] + 50)%255

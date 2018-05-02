@@ -123,8 +123,21 @@ def f(a):
 def create_spheres(tiles):
     spheres = []
     for i in range(len(tiles)):
-        # assert np.all(get_ac3_arc_consistency_slice(i, tiles) == get_arc_consistency_slice(i, tiles))
-        spheres.append(get_arc_consistency_slice(i, tiles))
+        # s1 = get_ac3_arc_consistency_slice(i, tiles)
+        # s2 = get_arc_consistency_slice(i, tiles)
+        # assert len(set(s1.flatten())) == 2
+        # assert len(set(s2.flatten())) == 2
+        # # assert np.all(s1 == s2), (np.sum(s1), np.sum(s2)) 
+        # if not np.all(s1 == s2):
+        #     print ""
+        #     print s1[s1 != s2]
+        #     print np.sum(s1)
+        #     print s2[s1 != s2]
+        #     print np.sum(s2)
+
+        # spheres.append(get_arc_consistency_slice(i, tiles))
+        spheres.append(get_ac3_arc_consistency_slice(i, tiles))
+
         # print "made sphere", i
     return np.array(spheres)
 
