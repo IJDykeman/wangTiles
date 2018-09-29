@@ -55,23 +55,22 @@ def draw_world(world, tiles, mask = None):
     toprint = "\n".join(toprint)
     for k in replacements:
         toprint = toprint.replace(k, replacements[k])
-    print toprint
-    print "=" * WORLD_WIDTH * 3
+    print (toprint)
+    print ("=" * WORLD_WIDTH * 3)
 
 
 def show_tiles(tiles):
     for i in range(len(tiles)):
-        print
-        print i
-        print tiles[i]
+        print (i)
+        print (tiles[i])
 
 def report_on_sphere(i, spheres, tiles):
-    print "=================================="
-    print "reporting information about tile", i
-    print tiles[i]
+    print ("==================================")
+    print ("reporting information about tile", i)
+    print (tiles[i])
     for t2 in range(len(tiles)):
-        print "transition to", t2
-        print tiles[t2]
-        print spheres[i, :,:, :, t2]
+        print ("transition to", t2)
+        print (tiles[t2])
+        print (spheres[i, :,:, :, t2])
 
-    print "=================================="
+    print ("==================================")

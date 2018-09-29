@@ -8,9 +8,9 @@ from tile_properties import TileProperties
 import re
 
 def get_tile(path, v=False, ignore_rotations=False):
-    # print path
+    # print ("a")
     solids, material_ids = import_vox(path)
-    # print path
+    # print ("b")
     # print solids
     tile = np.array([[[0]*TILE_WIDTH]*TILE_WIDTH]*TILE_WIDTH)
     for i, b in enumerate(solids):
@@ -19,10 +19,10 @@ def get_tile(path, v=False, ignore_rotations=False):
     prior = 1.0
     path = path.replace(":","")
     p = re.compile("prior:?\d*\.?\d*")
-    if v: print path
+    if v: print (path)
     if len(p.findall(path)) > 0:
         prior = float(p.findall(path)[0].split("prior")[1])
-        if v: print "  ", prior
+        if v: print ("  ", prior)
     result = [tile]
     tile_properties = [TileProperties(is_air = 'air' in path.lower(), name = path.split("/")[-1].split(".vox")[0])]
     priors = [prior]
@@ -49,13 +49,14 @@ def get_tiles(v = False, ignore_rotations=False):
     tile_properties = []
     priors = []
     for f in onlyfiles:
+        print (f)
         try:
             new_tiles, new_tile_properties, new_priors = get_tile(f, v = v, ignore_rotations=ignore_rotations)
             result.extend(new_tiles)
             tile_properties.extend(new_tile_properties)
             priors.extend(new_priors)
         except:
-            print "  error processing", f
+            print ("  error processing", f)
             pass
 
     # for i in range(1):

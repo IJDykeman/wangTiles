@@ -19,7 +19,7 @@ spherehood_relative_array = []
 for i in range(SPHERE_WIDTH):
     for j in range(SPHERE_WIDTH):
         for l in range(SPHERE_WIDTH):
-            loc = (i - SPHERE_WIDTH / 2, j - SPHERE_WIDTH / 2, l - SPHERE_WIDTH / 2)
+            loc = (i - SPHERE_WIDTH // 2, j - SPHERE_WIDTH // 2, l - SPHERE_WIDTH // 2)
             if loc != (0, 0, 0):
                 spherehood_relative_array.append(loc)
 spherehood_relative_array = np.array(spherehood_relative_array)
@@ -53,36 +53,36 @@ def get_entropy(probmap, decided):
 def update_entropy_around(i, j, l):
     global probmap
     global entropy
-    entropy[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
-                = get_entropy(probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-                                      max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-                                      max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)],
-                              decided[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-                                      max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-                                      max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)])
+    entropy[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+            max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+            max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]\
+                = get_entropy(probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+                                      max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+                                      max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)],
+                              decided[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+                                      max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+                                      max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)])
 
 def normalize_probmap_around(i, j, l):
     global probmap
-    p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-                max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]
+    p = probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+                max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+                max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]
     s = np.sum(p, axis = -1)
     p[s==0,:]=1
     s = np.sum(p, axis = -1)
 
     p /= s.reshape(s.shape[0], s.shape[1], -1, 1)
-    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)] = p
+    probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+            max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+            max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)] = p
 
 
 def is_valid_around(i, j, l):
     global probmap
-    p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-                max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]
+    p = probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+                max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+                max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]
     s = np.sum(p, axis = -1)
     return len(np.where(s==0)[0]) == 0
 
@@ -93,28 +93,28 @@ def place(i, j, l, tile_index):
 
     sphere = spheres[tile_index]#.transpose(2,1,0,3)
 
-    old_p = probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)].copy()
+    old_p = probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+            max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+            max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)].copy()
 
-    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
+    probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+            max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+            max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]\
         *= sphere[
-                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
+                   max(0, -(i-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+                   max(0, -(j-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+                   max(0, -(l-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH)]
 
     # probmap = normalize_probmap(probmap)
     
     if ALLOW_FIXUP:
         if not is_valid_around(i, j, l):
-            probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-                max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-                max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)] = old_p
+            probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+                max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+                max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)] = old_p
             if fixup_budget > 0:
                 fixup_budget -= 1
-                print "fixing up",i,j,l
+                print ("fixing up",i,j,l)
                 return 
     normalize_probmap_around(i, j, l)
     update_entropy_around(i, j, l)
@@ -136,12 +136,12 @@ def place(i, j, l, tile_index):
 def forget(i, j, l):
     global probmap
     s = spheres[world[i,j, l],
-                   max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-                   max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
-    probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-            max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-            max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
+                   max(0, -(i-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+                   max(0, -(j-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+                   max(0, -(l-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH)]
+    probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+            max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+            max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]\
         /= s + np.ones_like(s) * (s==0)
     normalize_probmap_around(i,j,l)
     update_entropy_around(i, j,l)
@@ -152,12 +152,12 @@ def forget(i, j, l):
 #     global probmap
 #     # print world[i,j], i, j
 #     s = spheres[world[i,j,l],
-#                    max(0, -(i-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-#                    max(0, -(j-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH),
-#                    max(0, -(l-SPHERE_WIDTH / 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH / 2 + 1 - WORLD_WIDTH)]
-#     probmap[max(0, i - SPHERE_WIDTH / 2): min(WORLD_WIDTH, i + SPHERE_WIDTH / 2 + 1),
-#             max(0, j - SPHERE_WIDTH / 2): min(WORLD_WIDTH, j + SPHERE_WIDTH / 2 + 1),
-#             max(0, l - SPHERE_WIDTH / 2): min(WORLD_WIDTH, l + SPHERE_WIDTH / 2 + 1)]\
+#                    max(0, -(i-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, i + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+#                    max(0, -(j-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, j + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH),
+#                    max(0, -(l-SPHERE_WIDTH // 2)) : SPHERE_WIDTH - max(0, l + SPHERE_WIDTH // 2 + 1 - WORLD_WIDTH)]
+#     probmap[max(0, i - SPHERE_WIDTH // 2): min(WORLD_WIDTH, i + SPHERE_WIDTH // 2 + 1),
+#             max(0, j - SPHERE_WIDTH // 2): min(WORLD_WIDTH, j + SPHERE_WIDTH // 2 + 1),
+#             max(0, l - SPHERE_WIDTH // 2): min(WORLD_WIDTH, l + SPHERE_WIDTH // 2 + 1)]\
 #         /= s + np.ones_like(s) * (s==0)
 #     probmap = normalize_probmap(probmap)
 #     update_entropy_around(i, j, l)
@@ -192,7 +192,7 @@ def logp(world):
     for i in range(world.shape[0]):
         for j in range(world.shape[1]):
             logp += np.log(p(i,j,tiles[world[i,j]]))
-    print logp
+    print ( logp)
 
 
 def normalize_probmap(probmap):
@@ -205,18 +205,17 @@ def normalize_probmap(probmap):
     return probmap
 
 def report_on_probmap_location(i,j):
-    print "=================================="
-    print "reporting information about probmap at", i, j
+    print ( "==================================")
+    print ( "reporting information about probmap at", i, j)
     for tile, p in zip(tiles, probmap[i,j]):
-        print tile
-        print p
-        print
-    print "=================================="
+        print ( tile)
+        print ( p)
+        print ()
+    print ( "==================================")
 
 
-# print "===="
 tiles, tile_properties, tile_priors = get_tiles()
-print tile_priors
+print (tile_priors)
 
 
 tile_index_to_prior = np.ones(len(tiles)) / len(tiles)
@@ -225,7 +224,7 @@ import time
 t1 = time.time()
 
 spheres = create_spheres(tiles)
-print time.time() - t1, "to build tiles"
+print (time.time() - t1, "to build tiles")
 # print tiles
 # print
 # for tile in tiles:
@@ -316,7 +315,7 @@ def generate_world():
         place_a_tile()
     # print "generation complete."
 
-N_TRIALS = 10
+N_TRIALS = 1
 invalid_locations_record = []
 for i in range(N_TRIALS):
     
@@ -329,7 +328,7 @@ for i in range(N_TRIALS):
     t1 = time.time()
     generate_world()
     t2 = time.time()
-    print t2-t1, "seconds"
+    print (t2-t1, "seconds")
     invalid_locations = 0
 
     for i in range(0, WORLD_WIDTH):
@@ -339,12 +338,12 @@ for i in range(N_TRIALS):
                     invalid_locations += 1
 
     # print invalid_locations, "invalid locations"
-    print invalid_locations, "locations invalid"
+    print( invalid_locations, "locations invalid")
     invalid_locations_record.append(invalid_locations)
-    # print world
+    # print( world)
 
 
-print "mean locations invalid", np.mean(invalid_locations_record)
+print( "mean locations invalid", np.mean(invalid_locations_record))
 
 
 
@@ -354,11 +353,12 @@ REMOVE_EDGE_WIDTH = 1
 for i in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
     for j in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
         for l in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
-            if not is_valid(i,WORLD_WIDTH-j-1,l):
-                worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH]\
-                     = (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]>0) * (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:] + 50)%255
+            # color invalid tiles
+            # if not is_valid(i,WORLD_WIDTH-j-1,l):
+            #     worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH]\
+            #          = (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]>0) * (tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:] + 50)%255
 
-            elif not tile_properties[world[i,WORLD_WIDTH-j-1,l]].is_air:
+            if not tile_properties[world[i,WORLD_WIDTH-j-1,l]].is_air:
                 worldchars[i*stride:i*stride+TILE_WIDTH,j*stride:j*stride+TILE_WIDTH,l*stride:l*stride+TILE_WIDTH] \
                      = tiles[world[i,WORLD_WIDTH-j-1,l]][:,::-1,:]
             else:
@@ -366,8 +366,8 @@ for i in range(REMOVE_EDGE_WIDTH, WORLD_WIDTH-REMOVE_EDGE_WIDTH):
 
 
 a = (worldchars).astype(np.int32)
-# print np.mean(a)
+# print( np.mean(a))
 vox = Vox.from_dense(a)
 VoxWriter('test.vox', vox).write()
-print ".vox output written"
+print( ".vox output written")
 
