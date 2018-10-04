@@ -3,17 +3,17 @@ import numpy as np
 from constants import *
 
 
-def grid_bfs(starti, startj, startl, width):
-    queue = [(starti, startj, startl)]
-    visited = set({})
-    while queue:
-        i, j, l = queue.pop()
-        yield i,j, l
-        visited.add((i,j,l))
-        n = set(map(tuple, neighbors(i, j, l, width = width)))
-        n -= visited
-        n = list(n)
-        queue = [k for k in n if k not in queue] + queue
+# def grid_bfs(starti, startj, startl, width):
+#     queue = [(starti, startj, startl)]
+#     visited = set({})
+#     while queue:
+#         i, j, l = queue.pop()
+#         yield i,j, l
+#         visited.add((i,j,l))
+#         n = set(map(tuple, neighbors(i, j, l, width = width)))
+#         n -= visited
+#         n = list(n)
+#         queue = [k for k in n if k not in queue] + queue
 
 
 def match(a, b, di, dj, dl):

@@ -11,7 +11,7 @@ def import_vox(path):
         #check filetype
         bytes = f.read(4)
         file_id = struct.unpack(">4s",  bytes)
-        print (file_id[0])
+        # print (file_id[0])
         if file_id[0] == b'VOX ':
     
             #init material list
