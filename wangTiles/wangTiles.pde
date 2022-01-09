@@ -18,15 +18,14 @@ PImage tilesImage;
 HashMap<Tile, Integer> tileToNum= new HashMap<Tile, Integer>();
 
 void settings(){
-
+  final int windowWidth = tileWidth * mapWidth;
+  size(windowWidth, windowWidth);
   //noSmooth();
 //  smooth(4);
 
 }
 
 void setup() {
-  final int windowWidth = tileWidth * mapWidth;
-  size(windowWidth, windowWidth);
   tilesImage = loadImage(FILENAME);
   wangTiles = parseTilesIntoSet();
 
